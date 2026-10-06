@@ -74,3 +74,7 @@
 - Runbooks: deploy, backup and restore, key rotation, incidents, breach (draft for the founder, with the "who was affected" queries).
 - Local restore drill: `pg_dump` -> `pg_restore` into a new database -> `migrate status` all applied -> admin export of a parent decrypts with the production keys and writes its audit row. The drill on the real hosting is still to do once it is chosen (SPEC §16 "done when").
 - `TELECOM_COMPLIANCE_ACK` stays false by default; prod dialling is impossible without it.
+
+## M8 (part 1): LLM adapter (2026-10-07)
+- `internal/extract/claude`: Anthropic Messages API through the official Go SDK (`anthropic-sdk-go`), `LLM_PROVIDER=anthropic`, `LLM_MODEL` default `claude-opus-5-5`, effort medium, structured output against `report.schema.json` (keywords structured outputs may reject are stripped; the Go validator still enforces them), server-side refusal fallbacks, 90 s timeout, 2 retries. Refusals and truncation are errors; errors never carry prompt or response text. Wrapped by `extract.ModelExtractor` (one validation retry, then admin review).
+- Tests use a local HTTP server; no network.

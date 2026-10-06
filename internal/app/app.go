@@ -20,6 +20,7 @@ import (
 	"github.com/EklavyaGoyal17/haalchaal/internal/config"
 	"github.com/EklavyaGoyal17/haalchaal/internal/crypto"
 	"github.com/EklavyaGoyal17/haalchaal/internal/extract"
+	"github.com/EklavyaGoyal17/haalchaal/internal/extract/claude"
 	fakeextract "github.com/EklavyaGoyal17/haalchaal/internal/extract/fake"
 	"github.com/EklavyaGoyal17/haalchaal/internal/jobs"
 	"github.com/EklavyaGoyal17/haalchaal/internal/maintenance"
@@ -160,8 +161,14 @@ func newExtractor(cfg config.Config) (extract.Extractor, error) {
 	switch cfg.LLMProvider {
 	case "fake":
 		return fakeextract.Extractor{}, nil
+	case "anthropic":
+		c, err := claude.New(cfg.LLMAPIKey, cfg.LLMModel, "")
+		if err != nil {
+			return nil, err
+		}
+		return extract.ModelExtractor{LLM: c}, nil
 	default:
-		return nil, fmt.Errorf("LLM_PROVIDER %q is not available yet", cfg.LLMProvider)
+		return nil, fmt.Errorf("LLM_PROVIDER %q is not supported (fake or anthropic)", cfg.LLMProvider)
 	}
 }
 
