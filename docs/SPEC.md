@@ -276,7 +276,7 @@ Also add indexes on `calls (parent_id, scheduled_for)`, `alerts (status, created
 ## 5. Scheduling, calls and jobs
 
 ### Scheduler tick (every 60 seconds)
-1. Select parents with status `active`, valid consents (§13), and a plan that is due today in the parent's timezone.
+1. Select parents with status `active` on an account in `trial` or `active`, valid consents (§13: `calls`, `data_processing` and `share_with_family`, none withdrawn; `recording` is optional), and a plan that is due today in the parent's timezone.
 2. If local time is at or after `call_time_local` and before `window_end`, insert today's slot with `ON CONFLICT (parent_id, local_date) DO NOTHING`. Only the transaction that inserted the slot creates attempt 1 and enqueues `place_call` with dedupe key `place_call:<call_id>`.
 3. Never create a slot after `window_end`. If the server was down all day, the day is skipped and logged.
 
@@ -646,6 +646,7 @@ Dashboard metrics, all over the last 30 days: pickup rate per parent (completed 
 | `RETENTION_TRANSCRIPT_DAYS` | `365` | Confirm with the lawyer (§13) |
 | `RETENTION_AUDIT_DAYS` | `400` | Keep at least one year |
 | `DEFAULT_TIMEZONE` | `Asia/Kolkata` | |
+| `WORKER_CONCURRENCY` | `4` | Job loops per worker process, 1 to 64; run more processes to scale out |
 
 Ship a `.env.example` with every variable and never commit `.env`.
 

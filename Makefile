@@ -14,9 +14,9 @@ STATICCHECK := $(firstword $(wildcard $(GOBIN)/staticcheck $(GOBIN)/staticcheck.
 
 .PHONY: dev db-up db-down test-db test test-integration lint migrate-up migrate-down migrate-status sqlc genkey simcall
 
-## dev: start Postgres, apply migrations, run the server with fake vendors (worker arrives in M2)
+## dev: start Postgres, apply migrations, run the server and the worker with fake vendors
 dev: db-up migrate-up
-	go run ./cmd/haalchaal serve
+	go run ./cmd/haalchaal dev
 
 db-up:
 	docker compose up -d --wait db

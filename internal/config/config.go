@@ -36,7 +36,7 @@ type Config struct {
 
 	Keyring          *crypto.Keyring // nil in dev when ENCRYPTION_KEYS is unset
 	AdminUsers       string          // email:bcrypt_hash,...
-	AdminAlertPhones    []string
+	AdminAlertPhones []string
 
 	CallsEnabled         bool
 	DevAllowlist         []string
@@ -68,6 +68,8 @@ type Config struct {
 	RetentionAuditDays      int
 
 	DefaultTimezone *time.Location
+
+	WorkerConcurrency int
 }
 
 // Load reads configuration through getenv (os.Getenv in production, a map in
@@ -114,6 +116,8 @@ func Load(getenv func(string) string) (Config, []string, error) {
 		RetentionAuditDays:      l.positiveInt("RETENTION_AUDIT_DAYS", 400),
 
 		DefaultTimezone: l.location("DEFAULT_TIMEZONE", "Asia/Kolkata"),
+
+		WorkerConcurrency: l.positiveInt("WORKER_CONCURRENCY", 4),
 	}
 
 	switch c.AppEnv {
@@ -123,6 +127,9 @@ func Load(getenv func(string) string) (Config, []string, error) {
 	}
 	if len(c.RetryOffsets) > 2 {
 		l.errorf("RETRY_OFFSETS allows at most 2 gaps (3 attempts per day)")
+	}
+	if c.WorkerConcurrency > 64 {
+		l.errorf("WORKER_CONCURRENCY must be at most 64")
 	}
 	if c.RetentionAuditDays > 0 && c.RetentionAuditDays < 365 {
 		l.errorf("RETENTION_AUDIT_DAYS must be at least 365")

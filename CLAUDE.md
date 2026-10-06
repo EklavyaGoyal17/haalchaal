@@ -98,3 +98,4 @@ Created in Milestone 0; keep them working.
 - 2026-10: Hindi and English first, Tamil next.
 - 2026-10: Encryption key ids are 1 to 255; each `_enc` value is bound to its column name as associated data.
 - 2026-10: goose runs as a library (`haalchaal migrate`); sqlc runs in Docker (`make sqlc`) because it needs cgo on Windows. Dev Postgres is on port 55432.
+- 2026-10: Accounts in `trial` or `active` are callable; scheduling needs `calls`, `data_processing` and `share_with_family` consents (`recording` optional). A worker only claims job kinds it has a handler for.
