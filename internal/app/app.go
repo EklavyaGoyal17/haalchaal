@@ -22,6 +22,7 @@ import (
 	"github.com/EklavyaGoyal17/haalchaal/internal/extract"
 	fakeextract "github.com/EklavyaGoyal17/haalchaal/internal/extract/fake"
 	"github.com/EklavyaGoyal17/haalchaal/internal/jobs"
+	"github.com/EklavyaGoyal17/haalchaal/internal/maintenance"
 	"github.com/EklavyaGoyal17/haalchaal/internal/notify"
 	"github.com/EklavyaGoyal17/haalchaal/internal/notify/cloud"
 	fakenotify "github.com/EklavyaGoyal17/haalchaal/internal/notify/fake"
@@ -44,6 +45,7 @@ type App struct {
 	Scheduler *scheduler.Scheduler
 	Messenger notify.Messenger
 	Outbound  *outbound.Service
+	Retention *maintenance.Retention
 }
 
 // Options override parts of the graph (simcall and tests).
@@ -121,6 +123,11 @@ func New(cfg config.Config, pool *pgxpool.Pool, log *slog.Logger, opt Options) (
 		AdminPhones: cfg.AdminAlertPhones, ReviewURL: review,
 		Timeouts: alerts.Timeouts{Emergency: cfg.AlertAckTimeout, Urgent: cfg.UrgentAckTimeout},
 	}
+	a.Retention = &maintenance.Retention{
+		Pool: pool, Clock: a.Clock, Log: log, Voice: a.Voice, Location: cfg.DefaultTimezone,
+		TranscriptTTL: time.Duration(cfg.RetentionTranscriptDays) * 24 * time.Hour,
+		AuditTTL:      time.Duration(cfg.RetentionAuditDays) * 24 * time.Hour,
+	}
 	return a, nil
 }
 
@@ -180,6 +187,7 @@ func (a *App) RegisterHandlers(w *jobs.Worker) {
 	w.Handle(jobs.KindSendAlert, a.Outbound.SendAlert)
 	w.Handle(jobs.KindSendSummary, a.Outbound.SendSummary)
 	w.Handle(alerts.KindAdminNotice, a.Outbound.AdminNotice)
+	w.Handle(jobs.KindRetention, a.Retention.Run)
 }
 
 // NewWorker returns a job worker with every handler registered.
@@ -203,6 +211,9 @@ func (a *App) RunScheduler(ctx context.Context) error {
 		}
 		if _, err := a.Calls.SweepStale(ctx); err != nil && ctx.Err() == nil {
 			a.Log.Error("stale call sweep", "error", err)
+		}
+		if err := a.Retention.Schedule(ctx); err != nil && ctx.Err() == nil {
+			a.Log.Error("schedule retention", "error", err)
 		}
 		select {
 		case <-ctx.Done():

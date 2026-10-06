@@ -66,3 +66,11 @@
 - Export: every record about a parent as decrypted JSON, audited. Erase: exact confirmation phrase; deletes transcripts, reports, memories, medicines and alert details, anonymises the parent with a non-dialable +999 placeholder, stops calls, audited.
 - `haalchaal hashpw` / `make hashpw` for ADMIN_USERS. Keyring gained `DeriveKey`.
 - Integration tests drive the pages over HTTP: auth and lockout, CSRF, validation, onboarding through to the scheduler's dial with the right prompt, audit rows, withdrawal, refused resume, export, erase, test call blocked by the allowlist. Checked visually with Playwright screenshots.
+
+## M9 (part 1): operations (2026-10-07)
+- Daily retention job (`retention:<date>`, 03:00 in DEFAULT_TIMEZONE, enqueued by the scheduler loop): deletes transcripts past `delete_after` (asking the voice platform to delete recordings first when it supports it; a failure retries instead of losing track), expired follow-ups, family messages older than the transcript retention, webhook dedupe rows and finished jobs older than 30 days, audit rows older than RETENTION_AUDIT_DAYS; writes an audit row with counts.
+- `haalchaal rotate-keys`: re-encrypts every `_enc` column under the active key, paged, compare-and-set, re-runnable; audited.
+- `Dockerfile` (static binary on distroless, non-root, one image for every role) and `.dockerignore`.
+- Runbooks: deploy, backup and restore, key rotation, incidents, breach (draft for the founder, with the "who was affected" queries).
+- Local restore drill: `pg_dump` -> `pg_restore` into a new database -> `migrate status` all applied -> admin export of a parent decrypts with the production keys and writes its audit row. The drill on the real hosting is still to do once it is chosen (SPEC §16 "done when").
+- `TELECOM_COMPLIANCE_ACK` stays false by default; prod dialling is impossible without it.

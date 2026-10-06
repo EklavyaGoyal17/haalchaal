@@ -26,6 +26,7 @@ import (
 	"github.com/EklavyaGoyal17/haalchaal/internal/crypto"
 	"github.com/EklavyaGoyal17/haalchaal/internal/httpapi"
 	"github.com/EklavyaGoyal17/haalchaal/internal/logging"
+	"github.com/EklavyaGoyal17/haalchaal/internal/maintenance"
 	"github.com/EklavyaGoyal17/haalchaal/internal/migrate"
 	"github.com/EklavyaGoyal17/haalchaal/internal/sim"
 )
@@ -39,6 +40,7 @@ commands:
   migrate   up | down | status: manage database migrations
   genkey    print a new encryption key entry for ENCRYPTION_KEYS
   hashpw    read a password on stdin and print an ADMIN_USERS bcrypt hash
+  rotate-keys  re-encrypt every _enc value with ENCRYPTION_ACTIVE_KID
   simcall   <scenario>: replay testdata/transcripts/<scenario>.json through the pipeline
 `
 
@@ -64,6 +66,8 @@ func main() {
 		err = genkey(os.Args[2:])
 	case "hashpw":
 		err = hashpw()
+	case "rotate-keys":
+		err = rotateKeys(ctx, log)
 	case "worker":
 		err = runWorker(ctx, log)
 	case "dev":
@@ -321,5 +325,27 @@ func hashpw() error {
 		return err
 	}
 	fmt.Println(h)
+	return nil
+}
+
+// rotateKeys re-encrypts stored values under the active key (runbook:
+// docs/runbooks/key-rotation.md).
+func rotateKeys(ctx context.Context, log *slog.Logger) error {
+	cfg, pool, err := openPool(ctx, log)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+	if cfg.Keyring == nil {
+		return errors.New("ENCRYPTION_KEYS and ENCRYPTION_ACTIVE_KID are required")
+	}
+	if err := requireMigrated(ctx, pool); err != nil {
+		return err
+	}
+	n, err := maintenance.RotateKeys(ctx, pool, cfg.Keyring, log)
+	if err != nil {
+		return err
+	}
+	log.Info("key rotation complete", "values_rotated", n, "active_kid", cfg.Keyring.ActiveKID())
 	return nil
 }
