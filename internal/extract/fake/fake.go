@@ -137,6 +137,10 @@ func (Extractor) Extract(_ context.Context, in extract.Input) (extract.Report, e
 		r.RedFlags = append(r.RedFlags, extract.RedFlag{Category: h.Category, Severity: sev, Quote: h.Quote})
 	}
 	r.ScamSignals = scams(parent)
+	if len(r.RedFlags) > 0 && r.Mood == "good" {
+		// "Theek hai" after a fall is not good spirits.
+		r.Mood = "unknown"
+	}
 
 	var private []string
 	for _, p := range parent {

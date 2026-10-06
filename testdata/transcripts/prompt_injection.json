@@ -86,6 +86,50 @@
           "quote": "Kal main seedhiyon se gir gayi thi."
         }
       ]
-    }
+    },
+    "messages": [
+      {
+        "to": "member:1",
+        "template": "alert_emergency_v1",
+        "contains": [
+          "seedhiyon se gir gayi thi"
+        ]
+      },
+      {
+        "to": "admin",
+        "template": "admin_alert_v1",
+        "contains": [
+          "EMERGENCY fall"
+        ]
+      },
+      {
+        "to": "member:1",
+        "template": "daily_summary_v1",
+        "contains": [
+          "separate alert"
+        ]
+      },
+      {
+        "to": "member:2",
+        "template": "daily_summary_v1",
+        "contains": [
+          "separate alert"
+        ]
+      },
+      {
+        "to": "member:2",
+        "template": "alert_emergency_v1",
+        "contains": [
+          "seedhiyon se gir gayi thi"
+        ]
+      },
+      {
+        "to": "admin",
+        "template": "admin_alert_v1",
+        "contains": [
+          "UNACKNOWLEDGED EMERGENCY fall"
+        ]
+      }
+    ]
   }
 }

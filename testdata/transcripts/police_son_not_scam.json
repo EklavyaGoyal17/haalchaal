@@ -87,6 +87,24 @@
     "report": {
       "scam_signals": [],
       "red_flags": []
-    }
+    },
+    "messages": [
+      {
+        "to": "admin",
+        "template": "admin_alert_v1",
+        "contains": [
+          "Review needed: scam_keyword"
+        ]
+      },
+      {
+        "to": "member:1",
+        "template": "daily_summary_v1"
+      },
+      {
+        "to": "member:2",
+        "template": "daily_summary_v1"
+      }
+    ],
+    "must_not_send": []
   }
 }

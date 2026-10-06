@@ -1,19 +1,19 @@
 -- name: EnqueueJob :one
 -- A duplicate dedupe_key inserts nothing and returns no row.
-INSERT INTO jobs (kind, dedupe_key, payload, run_at, max_attempts)
-VALUES (@kind, @dedupe_key, @payload, @run_at, @max_attempts)
+INSERT INTO jobs (kind, dedupe_key, payload, run_at, max_attempts, priority)
+VALUES (@kind, @dedupe_key, @payload, @run_at, @max_attempts, @priority)
 ON CONFLICT (dedupe_key) DO NOTHING
 RETURNING id;
 
 -- name: ClaimJob :one
--- SPEC §5 claim, limited to the kinds this worker handles. now comes from the
--- injectable clock rather than SQL now().
+-- SPEC §5 claim, limited to the kinds this worker handles, safety work
+-- first. now comes from the injectable clock rather than SQL now().
 UPDATE jobs
 SET status = 'running', locked_by = @worker_id::text, locked_at = @now::timestamptz, attempts = attempts + 1
 WHERE id = (
   SELECT j.id FROM jobs j
   WHERE j.status = 'queued' AND j.run_at <= @now::timestamptz AND j.kind = ANY(@kinds::text[])
-  ORDER BY j.run_at, j.id
+  ORDER BY j.priority, j.run_at, j.id
   FOR UPDATE SKIP LOCKED
   LIMIT 1
 )

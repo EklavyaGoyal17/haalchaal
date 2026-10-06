@@ -128,6 +128,7 @@ type Job struct {
 	LockedBy    *string
 	LockedAt    *time.Time
 	LastError   *string
+	Priority    int16
 }
 
 type Medicine struct {
@@ -160,6 +161,8 @@ type Notification struct {
 	Status            string
 	Error             *string
 	CreatedAt         time.Time
+	DedupeKey         *string
+	SentAt            *time.Time
 }
 
 type Parent struct {

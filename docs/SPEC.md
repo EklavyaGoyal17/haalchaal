@@ -586,6 +586,7 @@ Templates in the utility category, submitted for Meta approval in English and Hi
 | `alert_scam_v1` | {{1}} mentioned a possible scam call ({{2}}). Please call them and remind them never to share an OTP or send money. | I'm on it |
 | `calls_paused_v1` | {{1}} asked us to pause the daily calls, so we have paused them. Reply here if you would like us to resume. | none |
 | `call_pending_v1` | Today's call with {{1}} is done. We'll share the details shortly. | none |
+| `admin_alert_v1` | HaalChaal admin: {{1}}. Parent ref {{2}}. Review: {{3}} | none (admins only; never carries quotes or health text) |
 
 Rules:
 - Send only to members with `whatsapp_opt_in_at` set.
@@ -646,6 +647,7 @@ Dashboard metrics, all over the last 30 days: pickup rate per parent (completed 
 | `RETENTION_TRANSCRIPT_DAYS` | `365` | Confirm with the lawyer (§13) |
 | `RETENTION_AUDIT_DAYS` | `400` | Keep at least one year |
 | `DEFAULT_TIMEZONE` | `Asia/Kolkata` | |
+| `PUBLIC_BASE_URL` | none | Admin pages base URL, used in links in admin alerts |
 | `WORKER_CONCURRENCY` | `4` | Job loops per worker process, 1 to 64; run more processes to scale out |
 
 Ship a `.env.example` with every variable and never commit `.env`.

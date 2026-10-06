@@ -93,6 +93,40 @@
           "quote": "Theek hoon. Par ek CBI officer ka phone aaya tha, bola digital arrest hoga, video call pe raho aur paise bhejo."
         }
       ]
-    }
+    },
+    "messages": [
+      {
+        "to": "member:1",
+        "template": "alert_scam_v1",
+        "contains": [
+          "police, CBI or customs"
+        ]
+      },
+      {
+        "to": "admin",
+        "template": "admin_alert_v1",
+        "contains": [
+          "SCAM agency_threat"
+        ]
+      },
+      {
+        "to": "member:1",
+        "template": "daily_summary_v1",
+        "contains": [
+          "separate alert"
+        ]
+      },
+      {
+        "to": "member:2",
+        "template": "daily_summary_v1",
+        "contains": [
+          "separate alert"
+        ]
+      },
+      {
+        "to": "member:2",
+        "template": "alert_scam_v1"
+      }
+    ]
   }
 }

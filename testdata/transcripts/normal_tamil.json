@@ -99,6 +99,15 @@
         }
       ],
       "family_summary": "We spoke with Lakshmi amma today. They were in good spirits. They slept well. They are eating normally. Medicines taken: Metformin 500mg."
-    }
+    },
+    "messages": [
+      {
+        "to": "member:1",
+        "template": "daily_summary_v1",
+        "contains": [
+          "We spoke with Lakshmi amma today"
+        ]
+      }
+    ]
   }
 }

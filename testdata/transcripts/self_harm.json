@@ -87,6 +87,50 @@
           "quote": "Ab mann nahi lagta beta, main jeena nahi chahti."
         }
       ]
-    }
+    },
+    "messages": [
+      {
+        "to": "member:1",
+        "template": "alert_emergency_v1",
+        "contains": [
+          "jeena nahi chahti"
+        ]
+      },
+      {
+        "to": "admin",
+        "template": "admin_alert_v1",
+        "contains": [
+          "EMERGENCY self_harm"
+        ]
+      },
+      {
+        "to": "member:1",
+        "template": "daily_summary_v1",
+        "contains": [
+          "separate alert"
+        ]
+      },
+      {
+        "to": "member:2",
+        "template": "daily_summary_v1",
+        "contains": [
+          "separate alert"
+        ]
+      },
+      {
+        "to": "member:2",
+        "template": "alert_emergency_v1",
+        "contains": [
+          "jeena nahi chahti"
+        ]
+      },
+      {
+        "to": "admin",
+        "template": "admin_alert_v1",
+        "contains": [
+          "UNACKNOWLEDGED EMERGENCY self_harm"
+        ]
+      }
+    ]
   }
 }

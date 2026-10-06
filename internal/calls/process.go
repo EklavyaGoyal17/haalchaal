@@ -176,6 +176,9 @@ func (s *Service) saveProcessed(ctx context.Context, tx pgx.Tx, call db.Call, ac
 	}
 	if p.invalid != nil {
 		s.Log.Error("extraction output invalid; report needs review", "call_id", call.ID)
+		if _, _, err := jobs.Enqueue(ctx, tx, alerts.AdminNoticeSpec(alerts.NoticeExtractionInvalid, &call.ParentID, call.ID.String(), now)); err != nil {
+			return err
+		}
 	}
 	r := p.report
 

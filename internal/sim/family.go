@@ -14,13 +14,15 @@ import (
 )
 
 type simPhones struct {
-	parent  string
-	members []string
-	local   string
+	parent   string
+	members  []string
+	local    string
+	admin    string
+	stranger string // not in the family; still allowlisted so tests see blocks come from logic
 }
 
 func (p simPhones) all() []string {
-	out := append([]string{p.parent}, p.members...)
+	out := append([]string{p.parent, p.admin, p.stranger}, p.members...)
 	if p.local != "" {
 		out = append(out, p.local)
 	}
@@ -28,7 +30,7 @@ func (p simPhones) all() []string {
 }
 
 func (rn *run) phones() simPhones {
-	p := simPhones{parent: randomPhone()}
+	p := simPhones{parent: randomPhone(), admin: randomPhone(), stranger: randomPhone()}
 	for range rn.sc.Family {
 		p.members = append(p.members, randomPhone())
 	}
@@ -158,4 +160,24 @@ func (rn *run) createFamily(ctx context.Context, ph simPhones) error {
 		}
 		return nil
 	})
+}
+
+// label names a phone number by role, for expectations.
+func (p simPhones) label(phone string) string {
+	switch phone {
+	case p.parent:
+		return "parent"
+	case p.admin:
+		return "admin"
+	case p.local:
+		return "local_contact"
+	case p.stranger:
+		return "stranger"
+	}
+	for i, m := range p.members {
+		if m == phone {
+			return fmt.Sprintf("member:%d", i+1)
+		}
+	}
+	return "unknown"
 }

@@ -103,8 +103,8 @@ func RaiseForCall(ctx context.Context, tx db.DBTX, kr *crypto.Keyring, f Finding
 	}
 	r := Raised{AlertID: row.ID, Type: row.Type, Created: row.Inserted}
 	r.Upgraded = !row.Inserted && row.Type == TypeEmergency && prevType != TypeEmergency
-	if r.Created || r.Upgraded {
-		if err := enqueueEscalation(ctx, tx, f.ParentID, row.ID, now, r.Upgraded); err != nil {
+	if (r.Created || r.Upgraded) && row.Type != TypeWatch {
+		if err := enqueueEscalation(ctx, tx, f.ParentID, row.ID, row.Type, now); err != nil {
 			return r, err
 		}
 	}
@@ -122,30 +122,28 @@ func RaiseMissedCalls(ctx context.Context, tx db.DBTX, parentID, slotID uuid.UUI
 	if err != nil {
 		return uuid.Nil, false, fmt.Errorf("raise missed_calls: %w", err)
 	}
-	return id, true, enqueueEscalation(ctx, tx, parentID, id, now, false)
+	return id, true, enqueueEscalation(ctx, tx, parentID, id, TypeMissedCalls, now)
 }
 
-// EscalationSpec is the escalate_alert job for one step of an alert.
-func EscalationSpec(parentID, alertID uuid.UUID, step int, runAt time.Time, suffix string) jobs.Spec {
-	key := "escalate_alert:" + alertID.String() + ":" + strconv.Itoa(step)
-	if suffix != "" {
-		key += ":" + suffix
-	}
+// SafetyMaxAttempts gives alert jobs more tries than ordinary jobs.
+const SafetyMaxAttempts = 10
+
+// EscalationSpec is the escalate_alert job for one step of an alert's
+// escalation chain. chain is the alert type the chain was planned for: when
+// an alert is upgraded to an emergency, a new chain starts and the old one
+// stops at its next step.
+func EscalationSpec(parentID, alertID uuid.UUID, chain string, step int, runAt time.Time) jobs.Spec {
 	return jobs.Spec{
 		Kind:        jobs.KindEscalateAlert,
-		DedupeKey:   key,
-		Payload:     jobs.Payload{ParentID: &parentID, AlertID: &alertID, Step: &step},
+		DedupeKey:   "escalate_alert:" + alertID.String() + ":" + strconv.Itoa(step) + ":" + chain,
+		Payload:     jobs.Payload{ParentID: &parentID, AlertID: &alertID, Step: &step, Chain: chain},
 		RunAt:       runAt,
-		MaxAttempts: 10, // safety messages get more tries than ordinary jobs
+		MaxAttempts: SafetyMaxAttempts,
 	}
 }
 
-func enqueueEscalation(ctx context.Context, tx db.DBTX, parentID, alertID uuid.UUID, now time.Time, upgraded bool) error {
-	suffix := ""
-	if upgraded {
-		suffix = "upgraded"
-	}
-	if _, _, err := jobs.Enqueue(ctx, tx, EscalationSpec(parentID, alertID, 0, now, suffix)); err != nil {
+func enqueueEscalation(ctx context.Context, tx db.DBTX, parentID, alertID uuid.UUID, chain string, now time.Time) error {
+	if _, _, err := jobs.Enqueue(ctx, tx, EscalationSpec(parentID, alertID, chain, 0, now)); err != nil {
 		return fmt.Errorf("enqueue escalation: %w", err)
 	}
 	return nil
@@ -158,4 +156,26 @@ func Truncate(s string, n int) string {
 		return s
 	}
 	return string(r[:n])
+}
+
+// Admin notice reasons (job payload Reason); short codes, never free text.
+const (
+	NoticeExtractionInvalid = "extraction_invalid"
+	NoticeStartFailed       = "start_failed"
+	NoticeDeadLetter        = "dead_letter"
+)
+
+// KindAdminNotice is the job that messages admins about a system problem.
+const KindAdminNotice = "admin_notice"
+
+// AdminNoticeSpec is an admin_notice job. ref is the call or alert id the
+// notice is about.
+func AdminNoticeSpec(reason string, parentID *uuid.UUID, ref string, runAt time.Time) jobs.Spec {
+	return jobs.Spec{
+		Kind:        KindAdminNotice,
+		DedupeKey:   "admin_notice:" + reason + ":" + ref,
+		Payload:     jobs.Payload{ParentID: parentID, Reason: reason, Recipient: ref},
+		RunAt:       runAt,
+		MaxAttempts: SafetyMaxAttempts,
+	}
 }

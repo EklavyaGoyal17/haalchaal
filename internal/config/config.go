@@ -70,6 +70,7 @@ type Config struct {
 	DefaultTimezone *time.Location
 
 	WorkerConcurrency int
+	PublicBaseURL     string // where admins reach the admin pages, for links in admin messages
 }
 
 // Load reads configuration through getenv (os.Getenv in production, a map in
@@ -118,6 +119,7 @@ func Load(getenv func(string) string) (Config, []string, error) {
 		DefaultTimezone: l.location("DEFAULT_TIMEZONE", "Asia/Kolkata"),
 
 		WorkerConcurrency: l.positiveInt("WORKER_CONCURRENCY", 4),
+		PublicBaseURL:     l.str("PUBLIC_BASE_URL", ""),
 	}
 
 	switch c.AppEnv {

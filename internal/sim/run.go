@@ -25,8 +25,11 @@ import (
 	"github.com/EklavyaGoyal17/haalchaal/internal/clock"
 	"github.com/EklavyaGoyal17/haalchaal/internal/config"
 	"github.com/EklavyaGoyal17/haalchaal/internal/db"
+	"github.com/EklavyaGoyal17/haalchaal/internal/extract"
 	"github.com/EklavyaGoyal17/haalchaal/internal/httpapi"
 	"github.com/EklavyaGoyal17/haalchaal/internal/jobs"
+	"github.com/EklavyaGoyal17/haalchaal/internal/notify"
+	fakenotify "github.com/EklavyaGoyal17/haalchaal/internal/notify/fake"
 	"github.com/EklavyaGoyal17/haalchaal/internal/safety"
 	"github.com/EklavyaGoyal17/haalchaal/internal/scheduler"
 	"github.com/EklavyaGoyal17/haalchaal/internal/voice/fake"
@@ -48,6 +51,15 @@ type Result struct {
 	Prompts         []string        `json:"-"` // rendered agent prompts, in dial order
 	FollowUps       []string        `json:"follow_ups_saved,omitempty"`
 	TranscriptsKept int             `json:"transcripts_kept"`
+	Messages        []SentMessage   `json:"messages"`
+	Acknowledged    []string        `json:"acknowledged,omitempty"` // categories of acknowledged alerts
+}
+
+// SentMessage is an outbound WhatsApp message, with the recipient as a role.
+type SentMessage struct {
+	To       string `json:"to"`
+	Template string `json:"template"`
+	Body     string `json:"body"`
 }
 
 // Runner holds what a run needs.
@@ -57,11 +69,16 @@ type Runner struct {
 	Log    *slog.Logger
 	// Start is the local date of the scenario day; zero means 6 Oct 2026.
 	Start time.Time
+	// Extractor overrides the configured extractor (safety tests).
+	Extractor extract.Extractor
+	// CallsDisabled runs with CALLS_ENABLED=false (safety tests).
+	CallsDisabled bool
 }
 
 type posted struct {
 	path string
 	body []byte
+	sig  string // signature header name
 }
 
 type run struct {
@@ -77,6 +94,8 @@ type run struct {
 	tz       string
 	posts    []posted
 	seq      int
+	msgr     *fakenotify.Messenger
+	ph       simPhones
 }
 
 // Run replays one scenario on a fresh simulated family.
@@ -95,10 +114,13 @@ func (r *Runner) Run(ctx context.Context, sc Scenario) (Result, error) {
 	rn.voice = fake.New(fmt.Sprintf("%x", secret))
 
 	phones := rn.phones()
-	gate := safety.Gate{Env: config.EnvDev, CallsEnabled: true, DevAllowlist: phones.all()}
+	rn.ph = phones
+	gate := safety.Gate{Env: config.EnvDev, CallsEnabled: !r.CallsDisabled, DevAllowlist: phones.all()}
 	cfg := r.Config
-	cfg.VoiceProvider = "fake"
-	a, err := app.New(cfg, r.Pool, r.Log, app.Options{Clock: rn.clk, Voice: rn.voice, Gate: &gate})
+	cfg.VoiceProvider, cfg.WhatsAppProvider = "fake", "fake"
+	cfg.AdminAlertPhones = []string{phones.admin}
+	rn.msgr = fakenotify.New(fmt.Sprintf("%x", secret)+"-wa", "verify", nil)
+	a, err := app.New(cfg, r.Pool, r.Log, app.Options{Clock: rn.clk, Voice: rn.voice, Messenger: rn.msgr, Gate: &gate, Extractor: r.Extractor})
 	if err != nil {
 		return Result{}, err
 	}
@@ -107,7 +129,7 @@ func (r *Runner) Run(ctx context.Context, sc Scenario) (Result, error) {
 		return Result{}, err
 	}
 	rn.worker = a.NewWorker()
-	rn.handler = (&httpapi.Server{Log: r.Log, Voice: a.Voice, Calls: a.Calls}).Handler()
+	rn.handler = (&httpapi.Server{Log: r.Log, Voice: a.Voice, Calls: a.Calls, Messenger: a.Messenger, Outbound: a.Outbound}).Handler()
 
 	days := append(append([]HistoryDay(nil), sc.History...), HistoryDay{Attempts: sc.Attempts})
 	var slotID uuid.UUID
@@ -118,6 +140,9 @@ func (r *Runner) Run(ctx context.Context, sc Scenario) (Result, error) {
 		}
 	}
 
+	if err := rn.afterCalls(ctx, sc); err != nil {
+		return Result{}, err
+	}
 	res, err := rn.result(ctx, slotID)
 	if err != nil {
 		return res, err
@@ -127,7 +152,7 @@ func (r *Runner) Run(ctx context.Context, sc Scenario) (Result, error) {
 		return res, err
 	}
 	for _, p := range rn.posts {
-		if err := rn.post(p.path, p.body, false); err != nil {
+		if err := rn.postSigned(p, false); err != nil {
 			return res, fmt.Errorf("replay: %w", err)
 		}
 	}
@@ -264,17 +289,87 @@ func (rn *run) postEvents(evs ...fake.WireEvent) error {
 }
 
 func (rn *run) post(path string, body []byte, record bool) error {
-	req := httptest.NewRequest(http.MethodPost, path, bytes.NewReader(body))
-	req.Header.Set(fake.SignatureHeader, rn.voice.Sign(body))
+	return rn.postSigned(posted{path: path, body: body, sig: fake.SignatureHeader}, record)
+}
+
+func (rn *run) postSigned(p posted, record bool) error {
+	req := httptest.NewRequest(http.MethodPost, p.path, bytes.NewReader(p.body))
+	if p.sig == notify.MetaSignatureHeader {
+		req.Header.Set(p.sig, rn.msgr.Sign(p.body))
+	} else {
+		req.Header.Set(p.sig, rn.voice.Sign(p.body))
+	}
 	rec := httptest.NewRecorder()
 	rn.handler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
-		return fmt.Errorf("POST %s: %d %s", path, rec.Code, strings.TrimSpace(rec.Body.String()))
+		return fmt.Errorf("POST %s: %d %s", p.path, rec.Code, strings.TrimSpace(rec.Body.String()))
 	}
 	if record {
-		rn.posts = append(rn.posts, posted{path, body})
+		rn.posts = append(rn.posts, p)
 	}
 	return nil
+}
+
+// afterCalls runs queued jobs (escalation steps, summaries) forward in time,
+// pressing acknowledgement buttons when the scenario says so.
+func (rn *run) afterCalls(ctx context.Context, sc Scenario) error {
+	start := rn.clk.Now()
+	horizon := sc.RunMinutes
+	if horizon == 0 {
+		horizon = 180
+	}
+	acks := append([]AckSpec(nil), sc.Acks...)
+	sort.SliceStable(acks, func(i, j int) bool { return acks[i].AfterMin < acks[j].AfterMin })
+	for _, a := range acks {
+		if err := rn.runUntil(ctx, start.Add(time.Duration(a.AfterMin)*time.Minute)); err != nil {
+			return err
+		}
+		if err := rn.ack(ctx, a); err != nil {
+			return err
+		}
+	}
+	return rn.runUntil(ctx, start.Add(time.Duration(horizon)*time.Minute))
+}
+
+// runUntil advances the clock job by job, never past until.
+func (rn *run) runUntil(ctx context.Context, until time.Time) error {
+	for range 500 {
+		if err := rn.drain(ctx); err != nil {
+			return err
+		}
+		var next *time.Time
+		if err := rn.r.Pool.QueryRow(ctx, `SELECT min(run_at) FROM jobs WHERE status = 'queued' AND payload->>'parent_id' = $1::text`,
+			rn.parentID).Scan(&next); err != nil {
+			return err
+		}
+		if next == nil || next.After(until) {
+			if until.After(rn.clk.Now()) {
+				rn.clk.Set(until)
+			}
+			return rn.drain(ctx)
+		}
+		if next.After(rn.clk.Now()) {
+			rn.clk.Set(*next)
+		}
+	}
+	return errors.New("jobs kept coming")
+}
+
+func (rn *run) ack(ctx context.Context, a AckSpec) error {
+	var alertID uuid.UUID
+	if err := rn.r.Pool.QueryRow(ctx, `SELECT id FROM alerts WHERE parent_id = $1 AND category = $2 ORDER BY created_at DESC LIMIT 1`,
+		rn.parentID, a.Category).Scan(&alertID); err != nil {
+		return fmt.Errorf("ack: no %s alert: %w", a.Category, err)
+	}
+	from := rn.ph.stranger
+	if a.Phone != "stranger" {
+		if a.Member < 1 || a.Member > len(rn.ph.members) {
+			return fmt.Errorf("ack: no member %d", a.Member)
+		}
+		from = rn.ph.members[a.Member-1]
+	}
+	body := notify.MetaInboundBody(notify.InboundEvent{Kind: notify.KindButton, From: from, Payload: notify.AckPayload(alertID.String()), MessageID: "wamid.in." + rn.eventID()})
+	return rn.postSigned(posted{path: "/v1/webhooks/whatsapp", body: body, sig: notify.MetaSignatureHeader}, true)
 }
 
 // drain runs every job that is due now.
@@ -326,6 +421,11 @@ func (rn *run) result(ctx context.Context, slotID uuid.UUID) (Result, error) {
 	for _, c := range rn.voice.Calls() {
 		res.Prompts = append(res.Prompts, c.SystemPrompt)
 	}
+	res.Messages = []SentMessage{}
+	for _, m := range rn.msgr.Sent() {
+		res.Messages = append(res.Messages, SentMessage{To: rn.ph.label(m.To), Template: m.Template, Body: m.Body})
+	}
+
 	mems, err := q.ListActiveFollowUps(ctx, db.ListActiveFollowUpsParams{ParentID: rn.parentID, Now: ptr(rn.clk.Now()), MaxItems: 10})
 	if err != nil {
 		return res, err
@@ -356,6 +456,9 @@ func (rn *run) result(ctx context.Context, slotID uuid.UUID) (Result, error) {
 	}
 	for _, a := range as {
 		res.Alerts = append(res.Alerts, ExpectedAlert{Type: a.Type, Category: a.Category, Source: a.Source})
+		if a.Status == "acknowledged" {
+			res.Acknowledged = append(res.Acknowledged, a.Category)
+		}
 	}
 	return res, nil
 }
@@ -433,6 +536,49 @@ func Check(exp Expected, res Result) []string {
 	for _, bad := range exp.MustNotSend {
 		if strings.Contains(strings.ToLower(summary.FamilySummary), strings.ToLower(bad)) {
 			out = append(out, fmt.Sprintf("family summary contains %q", bad))
+		}
+		for _, m := range res.Messages {
+			if strings.Contains(strings.ToLower(m.Body), strings.ToLower(bad)) {
+				out = append(out, fmt.Sprintf("%s message to %s contains %q", m.Template, m.To, bad))
+			}
+		}
+	}
+	if exp.NoMessages && len(res.Messages) > 0 {
+		out = append(out, fmt.Sprintf("%d messages sent, want none", len(res.Messages)))
+	}
+	if exp.Messages != nil {
+		out = append(out, checkMessages(exp.Messages, res.Messages)...)
+	}
+	if exp.Acknowledged != nil && !slices.Equal(exp.Acknowledged, res.Acknowledged) {
+		out = append(out, fmt.Sprintf("acknowledged = %v, want %v", res.Acknowledged, exp.Acknowledged))
+	}
+	return out
+}
+
+// checkMessages matches every expected message to a distinct sent one, in
+// order, and reports extra messages.
+func checkMessages(exp []ExpectedMessage, got []SentMessage) []string {
+	var out []string
+	if len(exp) != len(got) {
+		var g []string
+		for _, m := range got {
+			g = append(g, m.To+"/"+m.Template)
+		}
+		out = append(out, fmt.Sprintf("%d messages sent, want %d: %v", len(got), len(exp), g))
+	}
+	for i, e := range exp {
+		if i >= len(got) {
+			break
+		}
+		m := got[i]
+		if m.To != e.To || m.Template != e.Template {
+			out = append(out, fmt.Sprintf("message %d = %s/%s, want %s/%s", i+1, m.To, m.Template, e.To, e.Template))
+			continue
+		}
+		for _, c := range e.Contains {
+			if !strings.Contains(m.Body, c) {
+				out = append(out, fmt.Sprintf("message %d (%s) does not contain %q: %s", i+1, m.Template, c, m.Body))
+			}
 		}
 	}
 	return out

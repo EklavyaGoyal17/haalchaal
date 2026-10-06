@@ -84,6 +84,19 @@
         "stop_requested": true,
         "new_time_requested": null
       }
-    }
+    },
+    "messages": [
+      {
+        "to": "member:1",
+        "template": "calls_paused_v1"
+      },
+      {
+        "to": "admin",
+        "template": "admin_alert_v1",
+        "contains": [
+          "URGENT stop_requested"
+        ]
+      }
+    ]
   }
 }

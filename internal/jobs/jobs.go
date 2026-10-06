@@ -69,6 +69,8 @@ type Payload struct {
 	Step           *int       `json:"step,omitempty"`
 	Recipient      string     `json:"recipient,omitempty"` // a recipient kind or ID, never a phone number
 	Date           string     `json:"date,omitempty"`      // YYYY-MM-DD
+	Chain          string     `json:"chain,omitempty"`     // escalation chain: the alert type it was planned for
+	Reason         string     `json:"reason,omitempty"`    // a short reason code, never free text
 }
 
 // Spec describes a job to enqueue.
@@ -78,6 +80,22 @@ type Spec struct {
 	Payload     Payload
 	RunAt       time.Time
 	MaxAttempts int32 // 0 means DefaultMaxAttempts
+	Priority    int16 // lower runs first; 0 means DefaultPriority(Kind)
+}
+
+// DefaultPriority orders due jobs: alerts and admin notices first, then
+// call processing (which raises alerts), dialing, and routine messages last.
+func DefaultPriority(kind string) int16 {
+	switch kind {
+	case KindEscalateAlert, KindSendAlert, "admin_notice":
+		return 10
+	case KindProcessCall:
+		return 20
+	case KindPlaceCall:
+		return 50
+	default:
+		return 100
+	}
 }
 
 // Enqueue inserts a job using dbtx, which may be a transaction so the job is
@@ -102,12 +120,17 @@ func Enqueue(ctx context.Context, dbtx db.DBTX, s Spec) (int64, bool, error) {
 	if s.DedupeKey != "" {
 		key = &s.DedupeKey
 	}
+	prio := s.Priority
+	if prio <= 0 {
+		prio = DefaultPriority(s.Kind)
+	}
 	id, err := db.New(dbtx).EnqueueJob(ctx, db.EnqueueJobParams{
 		Kind:        s.Kind,
 		DedupeKey:   key,
 		Payload:     payload,
 		RunAt:       s.RunAt.UTC(),
 		MaxAttempts: maxAttempts,
+		Priority:    prio,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return 0, false, nil

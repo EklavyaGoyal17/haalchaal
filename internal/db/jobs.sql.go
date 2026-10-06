@@ -37,11 +37,11 @@ SET status = 'running', locked_by = $1::text, locked_at = $2::timestamptz, attem
 WHERE id = (
   SELECT j.id FROM jobs j
   WHERE j.status = 'queued' AND j.run_at <= $2::timestamptz AND j.kind = ANY($3::text[])
-  ORDER BY j.run_at, j.id
+  ORDER BY j.priority, j.run_at, j.id
   FOR UPDATE SKIP LOCKED
   LIMIT 1
 )
-RETURNING id, kind, dedupe_key, payload, run_at, status, attempts, max_attempts, locked_by, locked_at, last_error
+RETURNING id, kind, dedupe_key, payload, run_at, status, attempts, max_attempts, locked_by, locked_at, last_error, priority
 `
 
 type ClaimJobParams struct {
@@ -50,8 +50,8 @@ type ClaimJobParams struct {
 	Kinds    []string
 }
 
-// SPEC §5 claim, limited to the kinds this worker handles. now comes from the
-// injectable clock rather than SQL now().
+// SPEC §5 claim, limited to the kinds this worker handles, safety work
+// first. now comes from the injectable clock rather than SQL now().
 func (q *Queries) ClaimJob(ctx context.Context, arg ClaimJobParams) (Job, error) {
 	row := q.db.QueryRow(ctx, claimJob, arg.WorkerID, arg.Now, arg.Kinds)
 	var i Job
@@ -67,6 +67,7 @@ func (q *Queries) ClaimJob(ctx context.Context, arg ClaimJobParams) (Job, error)
 		&i.LockedBy,
 		&i.LockedAt,
 		&i.LastError,
+		&i.Priority,
 	)
 	return i, err
 }
@@ -136,8 +137,8 @@ func (q *Queries) DeleteFinishedJobsBefore(ctx context.Context, cutoff time.Time
 }
 
 const enqueueJob = `-- name: EnqueueJob :one
-INSERT INTO jobs (kind, dedupe_key, payload, run_at, max_attempts)
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO jobs (kind, dedupe_key, payload, run_at, max_attempts, priority)
+VALUES ($1, $2, $3, $4, $5, $6)
 ON CONFLICT (dedupe_key) DO NOTHING
 RETURNING id
 `
@@ -148,6 +149,7 @@ type EnqueueJobParams struct {
 	Payload     []byte
 	RunAt       time.Time
 	MaxAttempts int32
+	Priority    int16
 }
 
 // A duplicate dedupe_key inserts nothing and returns no row.
@@ -158,6 +160,7 @@ func (q *Queries) EnqueueJob(ctx context.Context, arg EnqueueJobParams) (int64, 
 		arg.Payload,
 		arg.RunAt,
 		arg.MaxAttempts,
+		arg.Priority,
 	)
 	var id int64
 	err := row.Scan(&id)
@@ -191,7 +194,7 @@ func (q *Queries) FailJob(ctx context.Context, arg FailJobParams) (int64, error)
 }
 
 const getJob = `-- name: GetJob :one
-SELECT id, kind, dedupe_key, payload, run_at, status, attempts, max_attempts, locked_by, locked_at, last_error FROM jobs WHERE id = $1
+SELECT id, kind, dedupe_key, payload, run_at, status, attempts, max_attempts, locked_by, locked_at, last_error, priority FROM jobs WHERE id = $1
 `
 
 func (q *Queries) GetJob(ctx context.Context, id int64) (Job, error) {
@@ -209,6 +212,7 @@ func (q *Queries) GetJob(ctx context.Context, id int64) (Job, error) {
 		&i.LockedBy,
 		&i.LockedAt,
 		&i.LastError,
+		&i.Priority,
 	)
 	return i, err
 }
@@ -218,7 +222,7 @@ UPDATE jobs
 SET status = CASE WHEN attempts >= max_attempts THEN 'failed' ELSE 'queued' END,
     locked_by = NULL, locked_at = NULL, last_error = 'lock expired'
 WHERE status = 'running' AND locked_at < $1::timestamptz
-RETURNING id, kind, dedupe_key, payload, run_at, status, attempts, max_attempts, locked_by, locked_at, last_error
+RETURNING id, kind, dedupe_key, payload, run_at, status, attempts, max_attempts, locked_by, locked_at, last_error, priority
 `
 
 // Requeue running jobs whose lock expired. A job that has used every attempt
@@ -244,6 +248,7 @@ func (q *Queries) ReapStaleJobs(ctx context.Context, cutoff time.Time) ([]Job, e
 			&i.LockedBy,
 			&i.LockedAt,
 			&i.LastError,
+			&i.Priority,
 		); err != nil {
 			return nil, err
 		}

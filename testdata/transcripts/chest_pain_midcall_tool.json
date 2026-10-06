@@ -97,6 +97,47 @@
           "quote": "Subah se seene mein dard ho raha hai, aur pasina aa raha hai."
         }
       ]
-    }
+    },
+    "messages": [
+      {
+        "to": "member:1",
+        "template": "alert_emergency_v1",
+        "contains": [
+          "seene mein dard"
+        ]
+      },
+      {
+        "to": "admin",
+        "template": "admin_alert_v1",
+        "contains": [
+          "EMERGENCY chest_pain"
+        ]
+      },
+      {
+        "to": "member:1",
+        "template": "daily_summary_v1",
+        "contains": [
+          "separate alert"
+        ]
+      },
+      {
+        "to": "member:2",
+        "template": "daily_summary_v1",
+        "contains": [
+          "separate alert"
+        ]
+      },
+      {
+        "to": "member:2",
+        "template": "alert_emergency_v1"
+      },
+      {
+        "to": "admin",
+        "template": "admin_alert_v1",
+        "contains": [
+          "UNACKNOWLEDGED"
+        ]
+      }
+    ]
   }
 }

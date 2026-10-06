@@ -120,6 +120,20 @@
         "stop_requested": false,
         "new_time_requested": null
       }
-    }
+    },
+    "messages": [
+      {
+        "to": "member:1",
+        "template": "daily_summary_v1",
+        "contains": [
+          "Medicines taken: Amlodipine 5mg",
+          "Diwali"
+        ]
+      },
+      {
+        "to": "member:2",
+        "template": "daily_summary_v1"
+      }
+    ]
   }
 }

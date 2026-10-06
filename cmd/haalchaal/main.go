@@ -179,7 +179,7 @@ func serve(ctx context.Context, log *slog.Logger) error {
 	if err != nil {
 		return err
 	}
-	api := &httpapi.Server{DB: pool, Migrations: m, Log: log, Voice: a.Voice, Calls: a.Calls}
+	api := &httpapi.Server{DB: pool, Migrations: m, Log: log, Voice: a.Voice, Calls: a.Calls, Messenger: a.Messenger, Outbound: a.Outbound}
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,
 		Handler:           api.Handler(),

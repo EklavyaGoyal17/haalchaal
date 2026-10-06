@@ -8,10 +8,12 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/EklavyaGoyal17/haalchaal/internal/alerts"
 	"github.com/EklavyaGoyal17/haalchaal/internal/calls"
 	"github.com/EklavyaGoyal17/haalchaal/internal/clock"
 	"github.com/EklavyaGoyal17/haalchaal/internal/config"
@@ -19,6 +21,10 @@ import (
 	"github.com/EklavyaGoyal17/haalchaal/internal/extract"
 	fakeextract "github.com/EklavyaGoyal17/haalchaal/internal/extract/fake"
 	"github.com/EklavyaGoyal17/haalchaal/internal/jobs"
+	"github.com/EklavyaGoyal17/haalchaal/internal/notify"
+	"github.com/EklavyaGoyal17/haalchaal/internal/notify/cloud"
+	fakenotify "github.com/EklavyaGoyal17/haalchaal/internal/notify/fake"
+	"github.com/EklavyaGoyal17/haalchaal/internal/outbound"
 	"github.com/EklavyaGoyal17/haalchaal/internal/safety"
 	"github.com/EklavyaGoyal17/haalchaal/internal/scheduler"
 	"github.com/EklavyaGoyal17/haalchaal/internal/voice"
@@ -35,13 +41,17 @@ type App struct {
 	Voice     voice.Provider
 	Calls     *calls.Service
 	Scheduler *scheduler.Scheduler
+	Messenger notify.Messenger
+	Outbound  *outbound.Service
 }
 
 // Options override parts of the graph (simcall and tests).
 type Options struct {
-	Clock clock.Clock
-	Voice voice.Provider
-	Gate  *safety.Gate
+	Clock     clock.Clock
+	Voice     voice.Provider
+	Messenger notify.Messenger
+	Extractor extract.Extractor
+	Gate      *safety.Gate
 }
 
 // New builds the App. In dev without ENCRYPTION_KEYS it uses a throwaway key
@@ -83,13 +93,59 @@ func New(cfg config.Config, pool *pgxpool.Pool, log *slog.Logger, opt Options) (
 		TranscriptRetention: time.Duration(cfg.RetentionTranscriptDays) * 24 * time.Hour,
 		FollowUpTTL:         cfg.FollowUpTTL,
 	}
-	ex, err := newExtractor(cfg)
-	if err != nil {
-		return nil, err
+	ex := opt.Extractor
+	if ex == nil {
+		var err error
+		if ex, err = newExtractor(cfg); err != nil {
+			return nil, err
+		}
 	}
 	a.Calls.Extractor = ex
 	a.Scheduler = &scheduler.Scheduler{Pool: pool, Clock: a.Clock, Log: log, Provider: a.Voice.Name()}
+
+	a.Messenger = opt.Messenger
+	if a.Messenger == nil {
+		m, err := newMessenger(cfg, log)
+		if err != nil {
+			return nil, err
+		}
+		a.Messenger = m
+	}
+	review := ""
+	if cfg.PublicBaseURL != "" {
+		review = strings.TrimRight(cfg.PublicBaseURL, "/") + "/admin/review"
+	}
+	a.Outbound = &outbound.Service{
+		Pool: pool, Clock: a.Clock, Log: log, Keyring: a.Keyring, Messenger: a.Messenger, Gate: gate,
+		AdminPhones: cfg.AdminAlertPhones, ReviewURL: review,
+		Timeouts: alerts.Timeouts{Emergency: cfg.AlertAckTimeout, Urgent: cfg.UrgentAckTimeout},
+	}
 	return a, nil
+}
+
+func newMessenger(cfg config.Config, log *slog.Logger) (notify.Messenger, error) {
+	switch cfg.WhatsAppProvider {
+	case "fake":
+		secret, verify := cfg.WhatsAppAppSecret, cfg.WhatsAppVerifyToken
+		if secret == "" {
+			secret = randomHex()
+			log.Warn("WHATSAPP_APP_SECRET not set: fake messenger uses a random secret for this process")
+		}
+		if verify == "" {
+			verify = randomHex()
+		}
+		return fakenotify.New(secret, verify, log), nil
+	case "cloud":
+		return cloud.New(cfg.WhatsAppAPIVersion, cfg.WhatsAppPhoneNumberID, cfg.WhatsAppToken, cfg.WhatsAppAppSecret, cfg.WhatsAppVerifyToken)
+	default:
+		return nil, fmt.Errorf("WHATSAPP_PROVIDER %q is not supported", cfg.WhatsAppProvider)
+	}
+}
+
+func randomHex() string {
+	b := make([]byte, 16)
+	_, _ = rand.Read(b)
+	return hex.EncodeToString(b)
 }
 
 func newExtractor(cfg config.Config) (extract.Extractor, error) {
@@ -106,9 +162,7 @@ func newVoice(cfg config.Config, log *slog.Logger) (voice.Provider, error) {
 	case "fake":
 		secret := cfg.VoiceWebhookSecret
 		if secret == "" {
-			b := make([]byte, 16)
-			_, _ = rand.Read(b)
-			secret = hex.EncodeToString(b)
+			secret = randomHex()
 			log.Warn("VOICE_WEBHOOK_SECRET not set: fake provider uses a random secret for this process")
 		}
 		return fake.New(secret), nil
@@ -121,15 +175,17 @@ func newVoice(cfg config.Config, log *slog.Logger) (voice.Provider, error) {
 func (a *App) RegisterHandlers(w *jobs.Worker) {
 	w.Handle(jobs.KindPlaceCall, a.Calls.PlaceCall)
 	w.Handle(jobs.KindProcessCall, a.Calls.ProcessCall)
+	w.Handle(jobs.KindEscalateAlert, a.Outbound.EscalateAlert)
+	w.Handle(jobs.KindSendAlert, a.Outbound.SendAlert)
+	w.Handle(jobs.KindSendSummary, a.Outbound.SendSummary)
+	w.Handle(alerts.KindAdminNotice, a.Outbound.AdminNotice)
 }
 
 // NewWorker returns a job worker with every handler registered.
 func (a *App) NewWorker() *jobs.Worker {
 	w := &jobs.Worker{
 		DB: a.Pool, Clock: a.Clock, Log: a.Log, Concurrency: a.Config.WorkerConcurrency,
-		OnDeadLetter: func(_ context.Context, kind string, id int64, _ jobs.Payload) {
-			a.Log.Error("job dead-lettered", "job_id", id, "kind", kind)
-		},
+		OnDeadLetter: a.Outbound.DeadLetter,
 	}
 	a.RegisterHandlers(w)
 	return w

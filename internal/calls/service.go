@@ -138,6 +138,9 @@ func (s *Service) PlaceCall(ctx context.Context, j jobs.Job) error {
 			if err != nil {
 				return err
 			}
+			if _, _, err := jobs.Enqueue(ctx, tx, alerts.AdminNoticeSpec(alerts.NoticeStartFailed, &call.ParentID, callID.String(), end)); err != nil {
+				return err
+			}
 			return s.afterUnanswered(ctx, tx, call, end)
 		})
 	}

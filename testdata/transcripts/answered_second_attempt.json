@@ -1,24 +1,68 @@
 {
   "name": "answered_second_attempt",
   "description": "The first attempt is busy; the retry is answered and completes with a transcript. No alerts.",
-  "parent": {"preferred_name": "Kamla ji", "language": "hi", "first_call_done": true},
-  "family": [{"name": "Rahul", "relation": "son"}],
+  "parent": {
+    "preferred_name": "Kamla ji",
+    "language": "hi",
+    "first_call_done": true
+  },
+  "family": [
+    {
+      "name": "Rahul",
+      "relation": "son"
+    }
+  ],
   "attempts": [
-    {"events": [{"type": "busy", "after_sec": 4}]},
     {
       "events": [
-        {"type": "ringing", "after_sec": 3},
-        {"type": "answered", "after_sec": 10},
-        {"type": "completed", "after_sec": 200, "duration_sec": 190, "cost_paise": 1250}
+        {
+          "type": "busy",
+          "after_sec": 4
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "type": "ringing",
+          "after_sec": 3
+        },
+        {
+          "type": "answered",
+          "after_sec": 10
+        },
+        {
+          "type": "completed",
+          "after_sec": 200,
+          "duration_sec": 190,
+          "cost_paise": 1250
+        }
       ],
       "transcript": [
-        {"speaker": "agent", "text": "Namaste Kamla ji, main HaalChaal hoon, Rahul ka AI sahayak.", "offset_ms": 0},
-        {"speaker": "parent", "text": "Haan beta, sab theek hai.", "offset_ms": 4000}
+        {
+          "speaker": "agent",
+          "text": "Namaste Kamla ji, main HaalChaal hoon, Rahul ka AI sahayak.",
+          "offset_ms": 0
+        },
+        {
+          "speaker": "parent",
+          "text": "Haan beta, sab theek hai.",
+          "offset_ms": 4000
+        }
       ]
     }
   ],
   "expected": {
-    "attempts": ["busy", "completed"],
-    "alerts": []
+    "attempts": [
+      "busy",
+      "completed"
+    ],
+    "alerts": [],
+    "messages": [
+      {
+        "to": "member:1",
+        "template": "daily_summary_v1"
+      }
+    ]
   }
 }

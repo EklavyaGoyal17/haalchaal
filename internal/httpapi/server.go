@@ -10,6 +10,8 @@ import (
 
 	"github.com/EklavyaGoyal17/haalchaal/internal/calls"
 	"github.com/EklavyaGoyal17/haalchaal/internal/logging"
+	"github.com/EklavyaGoyal17/haalchaal/internal/notify"
+	"github.com/EklavyaGoyal17/haalchaal/internal/outbound"
 	"github.com/EklavyaGoyal17/haalchaal/internal/voice"
 )
 
@@ -31,6 +33,9 @@ type Server struct {
 
 	Voice voice.Provider
 	Calls *calls.Service
+
+	Messenger notify.Messenger
+	Outbound  *outbound.Service
 }
 
 // Handler returns the root handler with middleware applied.
@@ -40,6 +45,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /readyz", s.readyz)
 	mux.HandleFunc("POST /v1/webhooks/voice/{provider}", s.voiceWebhook)
 	mux.HandleFunc("POST /v1/voice/tools/{tool}", s.voiceTool)
+	mux.HandleFunc("GET /v1/webhooks/whatsapp", s.whatsappVerify)
+	mux.HandleFunc("POST /v1/webhooks/whatsapp", s.whatsappWebhook)
 	return s.requestID(s.recoverer(mux))
 }
 

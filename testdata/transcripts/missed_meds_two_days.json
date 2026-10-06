@@ -162,6 +162,45 @@
         }
       ],
       "red_flags": []
-    }
+    },
+    "messages": [
+      {
+        "to": "member:1",
+        "template": "daily_summary_v1",
+        "contains": [
+          "Not taken: Amlodipine 5mg"
+        ]
+      },
+      {
+        "to": "member:2",
+        "template": "daily_summary_v1"
+      },
+      {
+        "to": "member:1",
+        "template": "alert_urgent_v1",
+        "contains": [
+          "did not take Amlodipine 5mg on two calls in a row"
+        ]
+      },
+      {
+        "to": "admin",
+        "template": "admin_alert_v1",
+        "contains": [
+          "URGENT missed_medicine"
+        ]
+      },
+      {
+        "to": "member:1",
+        "template": "daily_summary_v1"
+      },
+      {
+        "to": "member:2",
+        "template": "daily_summary_v1"
+      },
+      {
+        "to": "member:2",
+        "template": "alert_urgent_v1"
+      }
+    ]
   }
 }

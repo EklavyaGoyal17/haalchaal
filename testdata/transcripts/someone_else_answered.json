@@ -81,6 +81,27 @@
       "follow_ups": [],
       "family_summary": "Someone else answered today's call, so we could not speak with Kamla ji."
     },
-    "transcript_deleted": true
+    "transcript_deleted": true,
+    "messages": [
+      {
+        "to": "member:1",
+        "template": "daily_summary_v1",
+        "contains": [
+          "Someone else answered"
+        ]
+      },
+      {
+        "to": "member:2",
+        "template": "daily_summary_v1",
+        "contains": [
+          "Someone else answered"
+        ]
+      }
+    ],
+    "must_not_send": [
+      "ghutne",
+      "dard",
+      "mandir"
+    ]
   }
 }

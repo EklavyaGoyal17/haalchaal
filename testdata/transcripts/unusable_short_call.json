@@ -131,6 +131,16 @@
     "report": {
       "call_quality": "good",
       "mood": "good"
-    }
+    },
+    "messages": [
+      {
+        "to": "member:1",
+        "template": "daily_summary_v1"
+      },
+      {
+        "to": "member:2",
+        "template": "daily_summary_v1"
+      }
+    ]
   }
 }

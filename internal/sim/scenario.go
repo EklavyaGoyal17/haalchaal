@@ -23,7 +23,20 @@ type Scenario struct {
 	FollowUps   []string     `json:"follow_ups"`
 	History     []HistoryDay `json:"history,omitempty"` // earlier days, replayed first
 	Attempts    []Attempt    `json:"attempts"`
-	Expected    Expected     `json:"expected"`
+	// Acks are "I'm on it" presses after the scenario day's calls end.
+	Acks []AckSpec `json:"acks,omitempty"`
+	// RunMinutes is how long to keep running queued jobs (escalation steps)
+	// after the calls end; default 180.
+	RunMinutes int      `json:"run_minutes,omitempty"`
+	Expected   Expected `json:"expected"`
+}
+
+// AckSpec presses the acknowledgement button on an alert.
+type AckSpec struct {
+	AfterMin int    `json:"after_min"`
+	Member   int    `json:"member"`          // 1-based priority of the family member pressing it
+	Category string `json:"category"`        // alert to acknowledge
+	Phone    string `json:"phone,omitempty"` // "stranger": press from a number outside the family
 }
 
 // ParentSpec describes the simulated parent.
@@ -104,6 +117,7 @@ type Expected struct {
 	TranscriptDeleted bool              `json:"transcript_deleted,omitempty"`
 	Messages          []ExpectedMessage `json:"messages,omitempty"` // checked by golden tests (M5)
 	NoMessages        bool              `json:"no_messages,omitempty"`
+	Acknowledged      []string          `json:"acknowledged,omitempty"`
 	MustNotSend       []string          `json:"must_not_send,omitempty"` // substrings no outbound message may contain
 }
 

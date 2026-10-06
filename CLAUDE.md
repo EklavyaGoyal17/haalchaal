@@ -100,3 +100,4 @@ Created in Milestone 0; keep them working.
 - 2026-10: goose runs as a library (`haalchaal migrate`); sqlc runs in Docker (`make sqlc`) because it needs cgo on Windows. Dev Postgres is on port 55432.
 - 2026-10: Accounts in `trial` or `active` are callable; scheduling needs `calls`, `data_processing` and `share_with_family` consents (`recording` optional). A worker only claims job kinds it has a handler for.
 - 2026-10: First-call voice consent is recorded when the parent answered, the call was usable and no stop was requested (the agent calls report_stop_request on a no). Someone-else calls keep red flags and scam signals (safety) but no other health data.
+- 2026-10: Admin WhatsApp alerts use an extra `admin_alert_v1` template with no quotes or health text; the local contact gets the emergency category, not the quote. Job priorities put alerts before summaries.
