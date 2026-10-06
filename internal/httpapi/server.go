@@ -78,7 +78,7 @@ func (s *Server) securityHeaders(next http.Handler) http.Handler {
 		h.Set("Cache-Control", "no-store")
 		h.Set("Content-Security-Policy", "default-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
 		h.Set("Cross-Origin-Opener-Policy", "same-origin")
-		if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
+		if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" { // HSTS is harmless if the header lies
 			h.Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
 		}
 		next.ServeHTTP(w, r)

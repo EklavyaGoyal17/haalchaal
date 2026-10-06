@@ -111,20 +111,68 @@ func Admin(ctx context.Context) string {
 	return s
 }
 
-func clientIP(r *http.Request) string {
+// clientIP is the connecting address, or, when that address is a trusted
+// proxy, the right-most untrusted address in X-Forwarded-For. Without
+// trusted proxies the header is ignored, since any client can set it.
+func (h *Handler) clientIP(r *http.Request) string {
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
-		return r.RemoteAddr
+		host = r.RemoteAddr
+	}
+	if !h.trusted(host) {
+		return host
+	}
+	parts := strings.Split(r.Header.Get("X-Forwarded-For"), ",")
+	for i := len(parts) - 1; i >= 0; i-- {
+		ip := strings.TrimSpace(parts[i])
+		if net.ParseIP(ip) == nil {
+			break
+		}
+		if !h.trusted(ip) {
+			return ip
+		}
 	}
 	return host
+}
+
+func (h *Handler) trusted(ip string) bool {
+	p := net.ParseIP(ip)
+	if p == nil {
+		return false
+	}
+	for _, n := range h.TrustedProxies {
+		if n.Contains(p) {
+			return true
+		}
+	}
+	return false
+}
+
+// secure reports whether the request arrived over TLS, directly or through a
+// trusted proxy that says so.
+func (h *Handler) secure(r *http.Request) bool {
+	if r.TLS != nil {
+		return true
+	}
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		host = r.RemoteAddr
+	}
+	return h.trusted(host) && r.Header.Get("X-Forwarded-Proto") == "https"
 }
 
 // requireAdmin enforces HTTP Basic auth against ADMIN_USERS, with failures
 // rate-limited per client address and per account.
 func (h *Handler) requireAdmin(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if h.RequireTLS && !h.secure(r) {
+			// Basic auth sends the password with every request: never over
+			// plain HTTP in production.
+			http.Error(w, "admin pages require HTTPS", http.StatusForbidden)
+			return
+		}
 		now := h.Clock.Now()
-		ip := clientIP(r)
+		ip := h.clientIP(r)
 		if h.limiter.blocked("ip:"+ip, now) {
 			w.Header().Set("Retry-After", "900")
 			http.Error(w, "too many failed logins; try again later", http.StatusTooManyRequests)

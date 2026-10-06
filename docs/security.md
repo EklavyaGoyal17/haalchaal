@@ -20,6 +20,7 @@ Living document. Updated at every security checkpoint (see the log at the end).
 | Database | Data exposure at rest, misuse of copied ciphertext | AES-256-GCM per column with key id, column name bound as associated data; keys from the environment; key rotation supported |
 | Logs and job errors | Personal data in logs | Bodies never logged; phone numbers masked; vendor errors carry codes, not parameters; validation errors echo at most 20 characters of a bad value; job payloads hold IDs only |
 | Any client -> HTTP server | Floods, clickjacking, sniffing | Per-instance in-flight limit (503 + Retry-After), read/write/idle timeouts, panic recovery without echo, security headers (CSP, frame-ancestors none, nosniff, no-referrer, no-store, HSTS behind TLS) |
+| Admins -> `/admin` | Password guessing, CSRF, plaintext credentials, data browsing | bcrypt (cost >= 10), equal-time unknown users, 5 failures per 15 min per address and per account, client address from `X-Forwarded-For` only via `TRUSTED_PROXIES`; HTTPS required outside dev (direct TLS or a trusted proxy's `X-Forwarded-Proto`); CSRF token (HMAC, 12 h) and Origin check on every form; html/template escaping; audit rows for every view of decrypted data, status and consent change, export and erase |
 | Workers | Double processing, lost jobs | `FOR UPDATE SKIP LOCKED`; fenced completion (a reaped worker cannot finish a job); reaper; exhausted jobs fail instead of looping; safety jobs dead-letter to admins; alerts claimed before summaries |
 
 ## Scaling notes
@@ -28,10 +29,12 @@ Living document. Updated at every security checkpoint (see the log at the end).
 - Pool size: set `pool_max_conns` in `DATABASE_URL`; keep `WORKER_CONCURRENCY` plus expected HTTP concurrency under it.
 
 ## Known gaps (tracked)
-- Admin authentication, CSRF and rate limiting arrive with the admin pages (M7).
+- In-memory login limiter is per instance; with N instances an attacker gets N x 5 tries per window. Acceptable for 3 admins with long passwords; move to a shared limiter if instances grow.
+- Basic auth has no logout or session expiry; replace with proper login before there are more than 3 admins (SPEC §11).
 - Vendor signature schemes for the real voice platform arrive with its adapter (M8).
 - Recording deletion at the voice platform and the retention job arrive in M9.
 - `govulncheck` cannot reach vuln.go.dev from the build sandbox; it runs in CI.
 
 ## Checkpoint log
 - 2026-10-06, after M6: reviewed webhooks, logging, prompt injection paths, outbound privacy, job fencing. Added security headers, in-flight limit, capped validation echoes, CI jobs for race-enabled integration tests, govulncheck and sqlc drift.
+- 2026-10-07, after M7: admin surface. Added HTTPS enforcement outside dev, trusted-proxy aware client addresses (spoofed X-Forwarded-For ignored), unit tests for CSRF tokens, limiter and user parsing.

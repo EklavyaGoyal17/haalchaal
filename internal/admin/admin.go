@@ -10,6 +10,7 @@ import (
 	"html/template"
 	"io/fs"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -40,6 +41,11 @@ type Handler struct {
 	CSRFKey  []byte
 	Calls    *calls.Service
 	Location *time.Location // DEFAULT_TIMEZONE, for display
+
+	// RequireTLS refuses admin requests that did not arrive over HTTPS
+	// (directly or via a trusted proxy). Set in staging and prod.
+	RequireTLS     bool
+	TrustedProxies []*net.IPNet
 
 	limiter *limiter
 	pages   map[string]*template.Template

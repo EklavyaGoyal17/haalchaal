@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"strconv"
 	"strings"
 	"time"
@@ -71,6 +72,7 @@ type Config struct {
 
 	WorkerConcurrency int
 	PublicBaseURL     string // where admins reach the admin pages, for links in admin messages
+	TrustedProxies    []*net.IPNet
 }
 
 // Load reads configuration through getenv (os.Getenv in production, a map in
@@ -120,6 +122,7 @@ func Load(getenv func(string) string) (Config, []string, error) {
 
 		WorkerConcurrency: l.positiveInt("WORKER_CONCURRENCY", 4),
 		PublicBaseURL:     l.str("PUBLIC_BASE_URL", ""),
+		TrustedProxies:    l.cidrs("TRUSTED_PROXIES"),
 	}
 
 	switch c.AppEnv {
@@ -294,6 +297,28 @@ func (l *loader) location(key, def string) *time.Location {
 		return time.UTC
 	}
 	return loc
+}
+
+// cidrs parses a list of CIDRs or bare IPs (load balancers whose
+// X-Forwarded-For may be trusted).
+func (l *loader) cidrs(key string) []*net.IPNet {
+	var out []*net.IPNet
+	for _, v := range splitList(l.getenv(key)) {
+		if !strings.Contains(v, "/") {
+			if ip := net.ParseIP(v); ip != nil && ip.To4() != nil {
+				v += "/32"
+			} else {
+				v += "/128"
+			}
+		}
+		_, n, err := net.ParseCIDR(v)
+		if err != nil {
+			l.errorf("%s has an invalid entry", key)
+			continue
+		}
+		out = append(out, n)
+	}
+	return out
 }
 
 func splitList(s string) []string {

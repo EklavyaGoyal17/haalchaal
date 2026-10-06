@@ -648,6 +648,7 @@ Dashboard metrics, all over the last 30 days: pickup rate per parent (completed 
 | `RETENTION_AUDIT_DAYS` | `400` | Keep at least one year |
 | `DEFAULT_TIMEZONE` | `Asia/Kolkata` | |
 | `PUBLIC_BASE_URL` | none | Admin pages base URL, used in links in admin alerts |
+| `TRUSTED_PROXIES` | none | Load balancer CIDRs whose `X-Forwarded-For`/`-Proto` headers are trusted (admin rate limiting, HTTPS check) |
 | `WORKER_CONCURRENCY` | `4` | Job loops per worker process, 1 to 64; run more processes to scale out |
 
 Ship a `.env.example` with every variable and never commit `.env`.

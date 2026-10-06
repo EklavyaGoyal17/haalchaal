@@ -226,5 +226,6 @@ func (a *App) NewAdmin() (*admin.Handler, error) {
 	return admin.New(admin.Handler{
 		Pool: a.Pool, Clock: a.Clock, Log: a.Log, Keyring: a.Keyring, Users: users,
 		CSRFKey: a.Keyring.DeriveKey("admin-csrf/v1"), Calls: a.Calls, Location: a.Config.DefaultTimezone,
+		RequireTLS: a.Config.AppEnv != config.EnvDev, TrustedProxies: a.Config.TrustedProxies,
 	})
 }
