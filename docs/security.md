@@ -28,6 +28,8 @@ Living document. Updated at every security checkpoint (see the log at the end).
 - `worker` can run as several processes; claims, slot creation and alert escalation are safe under concurrency (tested with two workers x 8 loops and 4 concurrent schedulers).
 - Pool size: set `pool_max_conns` in `DATABASE_URL`; keep `WORKER_CONCURRENCY` plus expected HTTP concurrency under it.
 
+- Load test (`internal/sim/load_integration_test.go`, local Postgres 16, one machine): 1000 parents -> one tick creates 1000 slots in 1.5 s; 4 workers dial all 1000 in 1.3 s; 6000 signed webhook deliveries (every event sent twice) in 1.7 s, about 3500 req/s, with exactly 1000 completed calls and 3000 recorded events. The pilot (30 families) is far below this.
+
 ## Known gaps (tracked)
 - In-memory login limiter is per instance; with N instances an attacker gets N x 5 tries per window. Acceptable for 3 admins with long passwords; move to a shared limiter if instances grow.
 - Basic auth has no logout or session expiry; replace with proper login before there are more than 3 admins (SPEC §11).
@@ -38,3 +40,4 @@ Living document. Updated at every security checkpoint (see the log at the end).
 ## Checkpoint log
 - 2026-10-06, after M6: reviewed webhooks, logging, prompt injection paths, outbound privacy, job fencing. Added security headers, in-flight limit, capped validation echoes, CI jobs for race-enabled integration tests, govulncheck and sqlc drift.
 - 2026-10-07, after M7: admin surface. Added HTTPS enforcement outside dev, trusted-proxy aware client addresses (spoofed X-Forwarded-For ignored), unit tests for CSRF tokens, limiter and user parsing.
+- 2026-10-07: load test added (see Scaling notes); concurrency invariants hold under duplicate delivery.
