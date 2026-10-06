@@ -1,0 +1,21 @@
+{
+  "name": "chest_pain_tool_only",
+  "description": "Mid-call report_red_flag with an unknown severity resolves to an emergency; the duplicate tool call delivery is deduped.",
+  "parent": {"preferred_name": "Kamla ji", "language": "hi", "first_call_done": true},
+  "family": [{"name": "Rahul", "relation": "son"}, {"name": "Priya", "relation": "daughter"}],
+  "attempts": [
+    {
+      "events": [
+        {"type": "answered", "after_sec": 6},
+        {"type": "completed", "after_sec": 120, "duration_sec": 114}
+      ],
+      "tool_calls": [
+        {"tool": "report_red_flag", "after_sec": 40, "args": {"category": "chest_pain", "severity": "unclear", "quote": "seene mein dard ho raha hai"}}
+      ]
+    }
+  ],
+  "expected": {
+    "attempts": ["completed"],
+    "alerts": [{"type": "emergency", "category": "chest_pain", "source": "tool"}]
+  }
+}

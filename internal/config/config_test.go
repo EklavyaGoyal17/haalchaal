@@ -92,6 +92,9 @@ func TestInvalid(t *testing.T) {
 		{"audit too short", map[string]string{"RETENTION_AUDIT_DAYS": "90"}, "at least 365"},
 		{"bad timezone", map[string]string{"DEFAULT_TIMEZONE": "Mars/Base"}, "DEFAULT_TIMEZONE"},
 		{"prod needs secrets", map[string]string{"APP_ENV": "prod"}, "ENCRYPTION_KEYS is required"},
+		{"prod forbids fake voice", map[string]string{"APP_ENV": "prod"}, "VOICE_PROVIDER cannot be fake"},
+		{"prod forbids fake whatsapp", map[string]string{"APP_ENV": "prod", "VOICE_PROVIDER": "x"}, "WHATSAPP_PROVIDER cannot be fake"},
+		{"too many workers", map[string]string{"WORKER_CONCURRENCY": "500"}, "WORKER_CONCURRENCY"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

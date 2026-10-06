@@ -24,3 +24,13 @@
 - `haalchaal worker` (scheduler + workers, refuses to start with pending migrations) and `haalchaal dev` (serve + worker, used by `make dev`). `WORKER_CONCURRENCY`.
 - `migrations/00002`: partial indexes for the reaper and per-parent cancellation.
 - Integration: 300 jobs raced by two workers x 8 loops are each claimed exactly once; 50 concurrent ticks give one slot per parent per day; 200 parents across 4 schedulers; every scheduling rule.
+
+## M3: calls with the fake voice provider (2026-10-06)
+- `internal/voice`: SPEC §6 interface; `voice/fake` records calls and uses signed JSON webhooks (HMAC-SHA256, fails closed without a secret) so real handlers run unchanged.
+- `internal/calls`: state machine (forward-only, out-of-order and duplicate events ignored), retry policy (RETRY_OFFSETS, never past window_end or the slot date), `place_call` (re-checks guards; marks `dialing` before StartCall so a re-run never dials twice; StartCall failure fails the attempt, no silent re-dial), event application in one transaction with `(provider, event_id)` dedupe, encrypted transcripts + `process_call` job, stale-attempt sweeper (30 min), mid-call tools (unknown severity -> emergency, self_harm always emergency), `PauseParent` (cancels scheduled attempts and place_call jobs only; alert and processing jobs survive).
+- Call context rendering from `prompts/agent_system.tmpl` (embedded); follow-ups and names are sanitised so call content cannot restructure the prompt.
+- `internal/alerts` (create/merge per call+category, never downgrade an emergency, missed_calls per slot, escalation job enqueued), `internal/audit` writer.
+- HTTP: `POST /v1/webhooks/voice/{provider}`, `POST /v1/voice/tools/{tool}`; 1 MB body cap; 401 on bad signature; bodies never logged.
+- `internal/app` wiring; `internal/sim` + `haalchaal simcall <scenario>` replay scenario files through the real handlers with a fake clock, then replay every request and check nothing changes.
+- Config: fake vendors are refused in prod.
+- `make simcall SCENARIO=no_answer`: 3 attempts (10:00, +15m, +45m), slot missed, one missed_calls alert, replay unchanged.

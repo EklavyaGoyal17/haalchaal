@@ -261,14 +261,23 @@ func TestReaper(t *testing.T) {
 	}
 }
 
-func TestCancelQueuedJobsForParent(t *testing.T) {
+func TestCancelQueuedCallJobsForParent(t *testing.T) {
 	pool := testdb.New(t)
 	ctx := context.Background()
 	a, b := uuid.New(), uuid.New()
-	_, _, _ = jobs.Enqueue(ctx, pool, jobs.Spec{Kind: "x", RunAt: t0, Payload: jobs.Payload{ParentID: &a}})
-	_, _, _ = jobs.Enqueue(ctx, pool, jobs.Spec{Kind: "x", RunAt: t0, Payload: jobs.Payload{ParentID: &a}})
-	_, _, _ = jobs.Enqueue(ctx, pool, jobs.Spec{Kind: "x", RunAt: t0, Payload: jobs.Payload{ParentID: &b}})
-	n, err := db.New(pool).CancelQueuedJobsForParent(ctx, db.CancelQueuedJobsForParentParams{Reason: "consent_withdrawn", ParentID: a.String()})
+	for _, s := range []jobs.Spec{
+		{Kind: jobs.KindPlaceCall, Payload: jobs.Payload{ParentID: &a}},
+		{Kind: jobs.KindPlaceCall, Payload: jobs.Payload{ParentID: &a}},
+		{Kind: jobs.KindEscalateAlert, Payload: jobs.Payload{ParentID: &a}}, // safety alerts survive a stop
+		{Kind: jobs.KindProcessCall, Payload: jobs.Payload{ParentID: &a}},
+		{Kind: jobs.KindPlaceCall, Payload: jobs.Payload{ParentID: &b}},
+	} {
+		s.RunAt = t0
+		if _, _, err := jobs.Enqueue(ctx, pool, s); err != nil {
+			t.Fatal(err)
+		}
+	}
+	n, err := db.New(pool).CancelQueuedCallJobsForParent(ctx, db.CancelQueuedCallJobsForParentParams{Reason: "consent_withdrawn", ParentID: a.String()})
 	if err != nil || n != 2 {
 		t.Fatalf("cancelled %d, err %v", n, err)
 	}

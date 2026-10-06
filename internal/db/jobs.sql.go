@@ -10,20 +10,21 @@ import (
 	"time"
 )
 
-const cancelQueuedJobsForParent = `-- name: CancelQueuedJobsForParent :execrows
+const cancelQueuedCallJobsForParent = `-- name: CancelQueuedCallJobsForParent :execrows
 UPDATE jobs
 SET status = 'failed', last_error = 'cancelled: ' || $1::text
-WHERE status = 'queued' AND payload->>'parent_id' = $2::text
+WHERE status = 'queued' AND kind = 'place_call' AND payload->>'parent_id' = $2::text
 `
 
-type CancelQueuedJobsForParentParams struct {
+type CancelQueuedCallJobsForParentParams struct {
 	Reason   string
 	ParentID string
 }
 
-// Used when consent is withdrawn or a stop is requested.
-func (q *Queries) CancelQueuedJobsForParent(ctx context.Context, arg CancelQueuedJobsForParentParams) (int64, error) {
-	result, err := q.db.Exec(ctx, cancelQueuedJobsForParent, arg.Reason, arg.ParentID)
+// Used when consent is withdrawn or a stop is requested. Only place_call is
+// cancelled: processing of finished calls and safety alerts must still run.
+func (q *Queries) CancelQueuedCallJobsForParent(ctx context.Context, arg CancelQueuedCallJobsForParentParams) (int64, error) {
+	result, err := q.db.Exec(ctx, cancelQueuedCallJobsForParent, arg.Reason, arg.ParentID)
 	if err != nil {
 		return 0, err
 	}

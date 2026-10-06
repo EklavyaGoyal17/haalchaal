@@ -44,11 +44,12 @@ SET status = CASE WHEN attempts >= max_attempts THEN 'failed' ELSE 'queued' END,
 WHERE status = 'running' AND locked_at < @cutoff::timestamptz
 RETURNING *;
 
--- name: CancelQueuedJobsForParent :execrows
--- Used when consent is withdrawn or a stop is requested.
+-- name: CancelQueuedCallJobsForParent :execrows
+-- Used when consent is withdrawn or a stop is requested. Only place_call is
+-- cancelled: processing of finished calls and safety alerts must still run.
 UPDATE jobs
 SET status = 'failed', last_error = 'cancelled: ' || @reason::text
-WHERE status = 'queued' AND payload->>'parent_id' = @parent_id::text;
+WHERE status = 'queued' AND kind = 'place_call' AND payload->>'parent_id' = @parent_id::text;
 
 -- name: GetJob :one
 SELECT * FROM jobs WHERE id = $1;

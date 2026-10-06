@@ -1,0 +1,17 @@
+{
+  "name": "no_answer",
+  "description": "Nobody answers any of the three attempts: retries at +15m and +45m, then the slot is missed and one missed_calls alert is raised.",
+  "parent": {"preferred_name": "Kamla ji", "language": "hi", "first_call_done": true},
+  "family": [{"name": "Rahul", "relation": "son"}],
+  "medicines": [{"name": "Amlodipine 5mg", "timing": "after breakfast"}],
+  "attempts": [
+    {"events": [{"type": "ringing", "after_sec": 3}, {"type": "no_answer", "after_sec": 45}]},
+    {"events": [{"type": "ringing", "after_sec": 3}, {"type": "no_answer", "after_sec": 45}]},
+    {"events": [{"type": "ringing", "after_sec": 3}, {"type": "busy", "after_sec": 5}]}
+  ],
+  "expected": {
+    "attempts": ["no_answer", "no_answer", "busy"],
+    "slot_status": "missed",
+    "alerts": [{"type": "missed_calls", "category": "missed_calls", "source": "rule"}]
+  }
+}

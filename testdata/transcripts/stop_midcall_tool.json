@@ -1,0 +1,28 @@
+{
+  "name": "stop_midcall_tool",
+  "description": "The parent asks to stop the calls; the agent calls report_stop_request mid-call. The parent is paused and an urgent stop_requested alert is raised. Events arrive out of order (answered after completed) and are ignored.",
+  "parent": {"preferred_name": "Kamla ji", "language": "hi", "first_call_done": true},
+  "family": [{"name": "Rahul", "relation": "son"}],
+  "attempts": [
+    {
+      "events": [
+        {"type": "ringing", "after_sec": 3},
+        {"type": "answered", "after_sec": 8},
+        {"type": "completed", "after_sec": 70, "duration_sec": 62},
+        {"type": "answered", "after_sec": 71},
+        {"type": "ringing", "after_sec": 72}
+      ],
+      "tool_calls": [{"tool": "report_stop_request", "after_sec": 50, "args": {}}],
+      "transcript_on_completed": true,
+      "transcript": [
+        {"speaker": "agent", "text": "Namaste Kamla ji, main HaalChaal hoon, ek AI sahayak.", "offset_ms": 0},
+        {"speaker": "parent", "text": "Mujhe ab yeh calls nahi chahiye, band kar do.", "offset_ms": 5000}
+      ]
+    }
+  ],
+  "expected": {
+    "attempts": ["completed"],
+    "parent_status": "paused",
+    "alerts": [{"type": "urgent", "category": "stop_requested", "source": "tool"}]
+  }
+}

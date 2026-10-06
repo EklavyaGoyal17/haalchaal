@@ -64,5 +64,7 @@ sqlc:
 genkey:
 	go run ./cmd/haalchaal genkey $(or $(KID),1)
 
+## simcall: replay a scenario, e.g. make simcall SCENARIO=no_answer
 simcall:
-	$(error simcall arrives in Milestone 3)
+	$(if $(SCENARIO),,$(error usage: make simcall SCENARIO=no_answer))
+	go run ./cmd/haalchaal simcall $(SCENARIO)

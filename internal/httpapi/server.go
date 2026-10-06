@@ -8,7 +8,9 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/EklavyaGoyal17/haalchaal/internal/calls"
 	"github.com/EklavyaGoyal17/haalchaal/internal/logging"
+	"github.com/EklavyaGoyal17/haalchaal/internal/voice"
 )
 
 // Pinger reports whether the database is reachable.
@@ -26,6 +28,9 @@ type Server struct {
 	DB         Pinger
 	Migrations MigrationChecker
 	Log        *slog.Logger
+
+	Voice voice.Provider
+	Calls *calls.Service
 }
 
 // Handler returns the root handler with middleware applied.
@@ -33,6 +38,8 @@ func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", s.healthz)
 	mux.HandleFunc("GET /readyz", s.readyz)
+	mux.HandleFunc("POST /v1/webhooks/voice/{provider}", s.voiceWebhook)
+	mux.HandleFunc("POST /v1/voice/tools/{tool}", s.voiceTool)
 	return s.requestID(s.recoverer(mux))
 }
 

@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -17,14 +18,13 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/EklavyaGoyal17/haalchaal/internal/clock"
+	"github.com/EklavyaGoyal17/haalchaal/internal/app"
 	"github.com/EklavyaGoyal17/haalchaal/internal/config"
 	"github.com/EklavyaGoyal17/haalchaal/internal/crypto"
 	"github.com/EklavyaGoyal17/haalchaal/internal/httpapi"
-	"github.com/EklavyaGoyal17/haalchaal/internal/jobs"
 	"github.com/EklavyaGoyal17/haalchaal/internal/logging"
 	"github.com/EklavyaGoyal17/haalchaal/internal/migrate"
-	"github.com/EklavyaGoyal17/haalchaal/internal/scheduler"
+	"github.com/EklavyaGoyal17/haalchaal/internal/sim"
 )
 
 const usage = `usage: haalchaal <command>
@@ -35,7 +35,7 @@ commands:
   dev       run serve and worker in one process (local development)
   migrate   up | down | status: manage database migrations
   genkey    print a new encryption key entry for ENCRYPTION_KEYS
-  simcall   replay a golden transcript through the pipeline (Milestone 3)
+  simcall   <scenario>: replay testdata/transcripts/<scenario>.json through the pipeline
 `
 
 func main() {
@@ -63,7 +63,7 @@ func main() {
 	case "dev":
 		err = runDev(ctx, log)
 	case "simcall":
-		err = fmt.Errorf("%s is not implemented yet", cmd)
+		err = runSimcall(ctx, log, os.Args[2:])
 	case "-h", "--help", "help":
 		fmt.Print(usage)
 		return
@@ -175,7 +175,11 @@ func serve(ctx context.Context, log *slog.Logger) error {
 	}
 	defer m.Close()
 
-	api := &httpapi.Server{DB: pool, Migrations: m, Log: log}
+	a, err := app.New(cfg, pool, log, app.Options{})
+	if err != nil {
+		return err
+	}
+	api := &httpapi.Server{DB: pool, Migrations: m, Log: log, Voice: a.Voice, Calls: a.Calls}
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,
 		Handler:           api.Handler(),
@@ -220,24 +224,15 @@ func runWorker(ctx context.Context, log *slog.Logger) error {
 	if err := requireMigrated(ctx, pool); err != nil {
 		return err
 	}
-
-	clk := clock.Real{}
-	w := &jobs.Worker{
-		DB:          pool,
-		Clock:       clk,
-		Log:         log,
-		Concurrency: cfg.WorkerConcurrency,
-		OnDeadLetter: func(_ context.Context, kind string, id int64, _ jobs.Payload) {
-			log.Error("job dead-lettered", "job_id", id, "kind", kind)
-		},
+	a, err := app.New(cfg, pool, log, app.Options{})
+	if err != nil {
+		return err
 	}
-	sched := &scheduler.Scheduler{Pool: pool, Clock: clk, Log: log, Provider: cfg.VoiceProvider}
-
+	w := a.NewWorker()
 	errc := make(chan error, 2)
 	go func() { errc <- w.Run(ctx) }()
-	go func() { errc <- sched.Run(ctx) }()
-	err = errors.Join(<-errc, <-errc)
-	return err
+	go func() { errc <- a.RunScheduler(ctx) }()
+	return errors.Join(<-errc, <-errc)
 }
 
 func requireMigrated(ctx context.Context, pool *pgxpool.Pool) error {
@@ -264,4 +259,40 @@ func runDev(ctx context.Context, log *slog.Logger) error {
 	go func() { errc <- serve(ctx, log); cancel() }()
 	go func() { errc <- runWorker(ctx, log); cancel() }()
 	return errors.Join(<-errc, <-errc)
+}
+
+// runSimcall replays one scenario with fake vendors and prints the result.
+// It writes a fresh simulated family into DATABASE_URL and never contacts
+// anyone.
+func runSimcall(ctx context.Context, log *slog.Logger, args []string) error {
+	if len(args) != 1 {
+		return errors.New("usage: haalchaal simcall <scenario>")
+	}
+	sc, err := sim.LoadByName(filepath.Join("testdata", "transcripts"), args[0])
+	if err != nil {
+		return err
+	}
+	cfg, pool, err := openPool(ctx, log)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+	if err := requireMigrated(ctx, pool); err != nil {
+		return err
+	}
+	quiet := logging.New(os.Stderr, slog.LevelWarn)
+	res, err := (&sim.Runner{Pool: pool, Config: cfg, Log: quiet}).Run(ctx, sc)
+	if err != nil {
+		return err
+	}
+	out, _ := json.MarshalIndent(res, "", "  ")
+	fmt.Println(string(out))
+	if problems := sim.Check(sc.Expected, res); len(problems) > 0 {
+		for _, p := range problems {
+			fmt.Println("MISMATCH:", p)
+		}
+		return fmt.Errorf("scenario %s: %d mismatches", sc.Name, len(problems))
+	}
+	fmt.Println("OK: scenario matches its expectations")
+	return nil
 }

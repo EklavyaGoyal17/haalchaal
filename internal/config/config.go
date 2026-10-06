@@ -137,6 +137,13 @@ func Load(getenv func(string) string) (Config, []string, error) {
 	if c.VoiceFromNumber != "" && !domain.ValidE164(c.VoiceFromNumber) {
 		l.errorf("VOICE_FROM_NUMBER must be E.164")
 	}
+	if c.AppEnv == EnvProd {
+		for _, kv := range [][2]string{{"VOICE_PROVIDER", c.VoiceProvider}, {"WHATSAPP_PROVIDER", c.WhatsAppProvider}, {"LLM_PROVIDER", c.LLMProvider}} {
+			if kv[1] == "fake" {
+				l.errorf("%s cannot be fake in prod", kv[0])
+			}
+		}
+	}
 	if c.AppEnv != EnvDev {
 		for _, k := range []string{"DATABASE_URL", "ENCRYPTION_KEYS", "ENCRYPTION_ACTIVE_KID", "ADMIN_USERS"} {
 			if strings.TrimSpace(getenv(k)) == "" {
