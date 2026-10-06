@@ -27,8 +27,10 @@ type Scenario struct {
 	Acks []AckSpec `json:"acks,omitempty"`
 	// RunMinutes is how long to keep running queued jobs (escalation steps)
 	// after the calls end; default 180.
-	RunMinutes int      `json:"run_minutes,omitempty"`
-	Expected   Expected `json:"expected"`
+	RunMinutes int `json:"run_minutes,omitempty"`
+	// FollowUpTTL overrides FOLLOW_UP_TTL, e.g. "12h".
+	FollowUpTTL string   `json:"follow_up_ttl,omitempty"`
+	Expected    Expected `json:"expected"`
 }
 
 // AckSpec presses the acknowledgement button on an alert.
@@ -117,8 +119,12 @@ type Expected struct {
 	TranscriptDeleted bool              `json:"transcript_deleted,omitempty"`
 	Messages          []ExpectedMessage `json:"messages,omitempty"` // checked by golden tests (M5)
 	NoMessages        bool              `json:"no_messages,omitempty"`
-	Acknowledged      []string          `json:"acknowledged,omitempty"`
-	MustNotSend       []string          `json:"must_not_send,omitempty"` // substrings no outbound message may contain
+	// PromptContains and PromptNotContains check the agent prompt of the
+	// scenario day's last dial.
+	PromptContains    []string `json:"prompt_contains,omitempty"`
+	PromptNotContains []string `json:"prompt_not_contains,omitempty"`
+	Acknowledged      []string `json:"acknowledged,omitempty"`
+	MustNotSend       []string `json:"must_not_send,omitempty"` // substrings no outbound message may contain
 }
 
 // ExpectedAlert identifies an alert.

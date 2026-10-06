@@ -13,6 +13,32 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const deleteExpiredMemories = `-- name: DeleteExpiredMemories :execrows
+DELETE FROM memories WHERE kind = 'follow_up' AND expires_at IS NOT NULL AND expires_at <= $1
+`
+
+func (q *Queries) DeleteExpiredMemories(ctx context.Context, now *time.Time) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteExpiredMemories, now)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const extendMemoryExpiry = `-- name: ExtendMemoryExpiry :exec
+UPDATE memories SET expires_at = $1 WHERE id = $2 AND (expires_at IS NULL OR expires_at < $1)
+`
+
+type ExtendMemoryExpiryParams struct {
+	ExpiresAt *time.Time
+	ID        uuid.UUID
+}
+
+func (q *Queries) ExtendMemoryExpiry(ctx context.Context, arg ExtendMemoryExpiryParams) error {
+	_, err := q.db.Exec(ctx, extendMemoryExpiry, arg.ExpiresAt, arg.ID)
+	return err
+}
+
 const getParentWithAccount = `-- name: GetParentWithAccount :one
 SELECT p.id, p.account_id, p.preferred_name, p.phone_e164, p.language, p.timezone, p.call_time_local, p.window_start, p.window_end, p.status, p.interests_enc, p.safe_word_enc, p.local_contact_name, p.local_contact_phone_e164, p.first_call_done_at, p.created_at, a.plan, a.status AS account_status
 FROM parents p JOIN accounts a ON a.id = p.account_id
@@ -67,8 +93,8 @@ func (q *Queries) GetParentWithAccount(ctx context.Context, id uuid.UUID) (GetPa
 }
 
 const insertMemory = `-- name: InsertMemory :one
-INSERT INTO memories (parent_id, kind, content_enc, source_call_id, expires_at)
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO memories (parent_id, kind, content_enc, source_call_id, expires_at, created_at)
+VALUES ($1, $2, $3, $4, $5, $6)
 RETURNING id
 `
 
@@ -78,6 +104,7 @@ type InsertMemoryParams struct {
 	ContentEnc   []byte
 	SourceCallID *uuid.UUID
 	ExpiresAt    *time.Time
+	CreatedAt    time.Time
 }
 
 func (q *Queries) InsertMemory(ctx context.Context, arg InsertMemoryParams) (uuid.UUID, error) {
@@ -87,6 +114,7 @@ func (q *Queries) InsertMemory(ctx context.Context, arg InsertMemoryParams) (uui
 		arg.ContentEnc,
 		arg.SourceCallID,
 		arg.ExpiresAt,
+		arg.CreatedAt,
 	)
 	var id uuid.UUID
 	err := row.Scan(&id)

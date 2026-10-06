@@ -154,7 +154,7 @@ func (rn *run) createFamily(ctx context.Context, ph simPhones) error {
 			if err != nil {
 				return err
 			}
-			if _, err := q.InsertMemory(ctx, db.InsertMemoryParams{ParentID: p.ID, Kind: "follow_up", ContentEnc: enc, ExpiresAt: &exp}); err != nil {
+			if _, err := q.InsertMemory(ctx, db.InsertMemoryParams{ParentID: p.ID, Kind: "follow_up", ContentEnc: enc, ExpiresAt: &exp, CreatedAt: rn.clk.Now()}); err != nil {
 				return err
 			}
 		}

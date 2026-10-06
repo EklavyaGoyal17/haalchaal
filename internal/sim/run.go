@@ -119,6 +119,13 @@ func (r *Runner) Run(ctx context.Context, sc Scenario) (Result, error) {
 	cfg := r.Config
 	cfg.VoiceProvider, cfg.WhatsAppProvider = "fake", "fake"
 	cfg.AdminAlertPhones = []string{phones.admin}
+	if sc.FollowUpTTL != "" {
+		ttl, err := time.ParseDuration(sc.FollowUpTTL)
+		if err != nil {
+			return Result{}, fmt.Errorf("follow_up_ttl: %w", err)
+		}
+		cfg.FollowUpTTL = ttl
+	}
 	rn.msgr = fakenotify.New(fmt.Sprintf("%x", secret)+"-wa", "verify", nil)
 	a, err := app.New(cfg, r.Pool, r.Log, app.Options{Clock: rn.clk, Voice: rn.voice, Messenger: rn.msgr, Gate: &gate, Extractor: r.Extractor})
 	if err != nil {
@@ -540,6 +547,22 @@ func Check(exp Expected, res Result) []string {
 		for _, m := range res.Messages {
 			if strings.Contains(strings.ToLower(m.Body), strings.ToLower(bad)) {
 				out = append(out, fmt.Sprintf("%s message to %s contains %q", m.Template, m.To, bad))
+			}
+		}
+	}
+	if len(exp.PromptContains)+len(exp.PromptNotContains) > 0 {
+		last := ""
+		if len(res.Prompts) > 0 {
+			last = res.Prompts[len(res.Prompts)-1]
+		}
+		for _, w := range exp.PromptContains {
+			if !strings.Contains(last, w) {
+				out = append(out, fmt.Sprintf("last agent prompt does not contain %q", w))
+			}
+		}
+		for _, w := range exp.PromptNotContains {
+			if strings.Contains(last, w) {
+				out = append(out, fmt.Sprintf("last agent prompt contains %q", w))
 			}
 		}
 	}

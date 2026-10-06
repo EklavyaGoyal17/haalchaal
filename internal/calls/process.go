@@ -188,17 +188,8 @@ func (s *Service) saveProcessed(ctx context.Context, tx pgx.Tx, call db.Call, ac
 		}
 	}
 	if p.invalid == nil && r.AnsweredBy == "parent" {
-		exp := now.Add(s.FollowUpTTL)
-		for _, f := range r.FollowUps {
-			enc, err := s.Keyring.EncryptString(f, AADMemory)
-			if err != nil {
-				return err
-			}
-			if _, err := q.InsertMemory(ctx, db.InsertMemoryParams{
-				ParentID: call.ParentID, Kind: "follow_up", ContentEnc: enc, SourceCallID: &call.ID, ExpiresAt: &exp,
-			}); err != nil {
-				return err
-			}
+		if err := s.saveFollowUps(ctx, q, call, r.FollowUps, now); err != nil {
+			return err
 		}
 	}
 
@@ -323,4 +314,50 @@ func stripHealthData(r *extract.Report) {
 	r.Medicines, r.Pain = []extract.MedicineTaken{}, []extract.Pain{}
 	r.FollowUps, r.PrivateNotes, r.MessagesForFamily = []string{}, []string{}, []string{}
 	r.FamilySummary = ""
+}
+
+// saveFollowUps stores follow-ups as memories that expire after
+// FOLLOW_UP_TTL. A follow-up already active (same text after normalising) is
+// extended instead of duplicated, so one topic cannot crowd out the others.
+func (s *Service) saveFollowUps(ctx context.Context, q *db.Queries, call db.Call, items []string, now time.Time) error {
+	if len(items) == 0 {
+		return nil
+	}
+	exp := now.Add(s.FollowUpTTL)
+	active, err := q.ListActiveFollowUps(ctx, db.ListActiveFollowUpsParams{ParentID: call.ParentID, Now: &now, MaxItems: 50})
+	if err != nil {
+		return err
+	}
+	existing := map[string]uuid.UUID{}
+	for _, m := range active {
+		text, err := s.Keyring.DecryptString(m.ContentEnc, AADMemory)
+		if err != nil {
+			return err
+		}
+		existing[extract.Normalize(text)] = m.ID
+	}
+	for _, f := range items {
+		key := extract.Normalize(f)
+		if key == "" {
+			continue
+		}
+		if id, ok := existing[key]; ok {
+			if err := q.ExtendMemoryExpiry(ctx, db.ExtendMemoryExpiryParams{ID: id, ExpiresAt: &exp}); err != nil {
+				return err
+			}
+			continue
+		}
+		enc, err := s.Keyring.EncryptString(f, AADMemory)
+		if err != nil {
+			return err
+		}
+		id, err := q.InsertMemory(ctx, db.InsertMemoryParams{
+			ParentID: call.ParentID, Kind: "follow_up", ContentEnc: enc, SourceCallID: &call.ID, ExpiresAt: &exp, CreatedAt: now,
+		})
+		if err != nil {
+			return err
+		}
+		existing[key] = id
+	}
+	return nil
 }

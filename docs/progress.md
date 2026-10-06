@@ -51,3 +51,9 @@
 - Job priorities (`migrations/00004`): alerts and admin notices, then call processing, then dialing, then summaries.
 - `migrations/00003`: notification dedupe key, sent_at, indexes.
 - Scenarios now assert every outbound message (recipient role, template, content); new: fall_acknowledged, fall_local_contact, stranger_ack_ignored, primary_not_opted_in. Safety tests: a model that leaks the private note into the summary and family messages never gets it sent; CALLS_ENABLED=false means no dial and no message.
+
+## M6: memory loop (2026-10-06)
+- Follow-ups from a usable call by the parent are saved as encrypted memories expiring after FOLLOW_UP_TTL; an active follow-up with the same normalised text is extended instead of duplicated. Memory timestamps come from the injectable clock.
+- The next call's context loads up to 3 unexpired follow-ups, newest first, sanitised into the agent prompt (and passed to extraction).
+- `DeleteExpiredMemories` query ready for the retention job (M9).
+- Scenarios: `memory_follow_up` (yesterday's knee pain is in today's prompt and stays one memory), `memory_expired` (past the TTL it is gone). Scenario files can now check the agent prompt and override FOLLOW_UP_TTL.
