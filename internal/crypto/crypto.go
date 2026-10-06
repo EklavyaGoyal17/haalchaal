@@ -9,7 +9,9 @@ package crypto
 import (
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/hmac"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -30,6 +32,7 @@ var ErrDecrypt = errors.New("crypto: cannot decrypt value")
 // Keyring holds every configured key and the one used for new writes.
 type Keyring struct {
 	aeads  map[byte]cipher.AEAD
+	derive map[byte][]byte // per-key root for derived MAC keys, never the key itself
 	active byte
 }
 
@@ -37,7 +40,7 @@ type Keyring struct {
 // and ENCRYPTION_ACTIVE_KID. Key ids are integers from 1 to 255 because they
 // are stored in one byte; each key must decode to exactly 32 bytes.
 func ParseKeyring(keys, activeKID string) (*Keyring, error) {
-	kr := &Keyring{aeads: map[byte]cipher.AEAD{}}
+	kr := &Keyring{aeads: map[byte]cipher.AEAD{}, derive: map[byte][]byte{}}
 	for _, entry := range strings.Split(keys, ",") {
 		entry = strings.TrimSpace(entry)
 		if entry == "" {
@@ -66,6 +69,9 @@ func ParseKeyring(keys, activeKID string) (*Keyring, error) {
 			return nil, err
 		}
 		kr.aeads[kid] = aead
+		root := hmac.New(sha256.New, raw)
+		root.Write([]byte("haalchaal/derive/v1"))
+		kr.derive[kid] = root.Sum(nil)
 	}
 	if len(kr.aeads) == 0 {
 		return nil, errors.New("ENCRYPTION_KEYS has no keys")
@@ -95,6 +101,15 @@ func newAEAD(key []byte) (cipher.AEAD, error) {
 		return nil, fmt.Errorf("crypto: new cipher: %w", err)
 	}
 	return cipher.NewGCM(block)
+}
+
+// DeriveKey returns a 32-byte key for a purpose such as "csrf", derived from
+// the active encryption key with HMAC-SHA256. Every instance with the same
+// keys derives the same value; rotating the active key changes it.
+func (k *Keyring) DeriveKey(label string) []byte {
+	m := hmac.New(sha256.New, k.derive[k.active])
+	m.Write([]byte(label))
+	return m.Sum(nil)
 }
 
 // ActiveKID returns the key id used for new writes.

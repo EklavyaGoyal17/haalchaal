@@ -205,3 +205,23 @@ func TestGenerateKey(t *testing.T) {
 		t.Fatalf("generated key does not parse: %v", err)
 	}
 }
+
+func TestDeriveKey(t *testing.T) {
+	k1, _ := GenerateKey()
+	k2, _ := GenerateKey()
+	a, _ := ParseKeyring("1:"+k1, "1")
+	b, _ := ParseKeyring("1:"+k1, "1")
+	c, _ := ParseKeyring("1:"+k1+",2:"+k2, "2")
+	if string(a.DeriveKey("csrf")) != string(b.DeriveKey("csrf")) {
+		t.Fatal("same keys derive different values")
+	}
+	if string(a.DeriveKey("csrf")) == string(a.DeriveKey("other")) {
+		t.Fatal("labels not separated")
+	}
+	if string(a.DeriveKey("csrf")) == string(c.DeriveKey("csrf")) {
+		t.Fatal("rotation did not change the derived key")
+	}
+	if len(a.DeriveKey("csrf")) != 32 {
+		t.Fatal("length")
+	}
+}

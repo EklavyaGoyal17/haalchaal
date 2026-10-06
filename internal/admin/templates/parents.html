@@ -1,0 +1,11 @@
+{{define "content"}}{{with .Data}}
+<h1>Parents</h1>
+<table>
+<tr><th>Name</th><th>Status</th><th>Plan</th><th>Language</th><th>Call time</th><th>Consents</th><th>Open alerts</th></tr>
+{{range .}}<tr>
+  <td><a href="/admin/parents/{{.ID}}">{{.PreferredName}}</a></td><td><span class="tag {{if eq .Status "active"}}ok{{end}}">{{.Status}}</span></td>
+  <td>{{.Plan}} ({{.AccountStatus}})</td><td>{{.Language}}</td><td>{{clock .CallTimeLocal}} {{.Timezone}}</td>
+  <td>{{.RequiredConsents}}/3</td><td>{{if .OpenAlerts}}<span class="tag emergency">{{.OpenAlerts}}</span>{{end}}</td>
+</tr>{{else}}<tr><td colspan="7" class="muted">No parents yet. <a href="/admin/accounts/new">Onboard a family</a>.</td></tr>{{end}}
+</table>
+{{end}}{{end}}

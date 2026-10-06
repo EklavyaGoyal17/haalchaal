@@ -1,0 +1,95 @@
+{{define "content"}}{{$csrf := .CSRF}}{{with .Data}}{{$id := .Parent.ID}}
+<h1>{{.Parent.PreferredName}} <span class="tag {{if eq .Parent.Status "active"}}ok{{end}}">{{.Parent.Status}}</span></h1>
+<div class="card">
+  <div class="row">
+    <div><span class="muted">Phone</span><br>{{mask .Parent.PhoneE164}}</div>
+    <div><span class="muted">Language</span><br>{{.Parent.Language}}</div>
+    <div><span class="muted">Plan</span><br>{{.Plan}} ({{.AccountStatus}})</div>
+    <div><span class="muted">Call time</span><br>{{clock .Parent.CallTimeLocal}} ({{clock .Parent.WindowStart}}–{{clock .Parent.WindowEnd}}, {{.Parent.Timezone}})</div>
+    <div><span class="muted">First call</span><br>{{if .Parent.FirstCallDoneAt}}{{whenp .Parent.FirstCallDoneAt}}{{else}}not yet{{end}}</div>
+  </div>
+  <p class="muted">Family: {{range $i, $m := .Members}}{{if $i}}, {{end}}{{$m.Name}} ({{with deref $m.Relation}}{{.}}, {{end}}{{mask $m.PhoneE164}}{{if not $m.WhatsappOptInAt}}, no WhatsApp opt-in{{end}}){{end}}</p>
+</div>
+
+<div class="row">
+<div class="card">
+  <h2>Status</h2>
+  <form method="post" action="/admin/parents/{{$id}}/status">
+    <input type="hidden" name="csrf" value="{{$csrf}}">
+    <select name="status"><option value="active">Resume (active)</option><option value="paused">Pause</option><option value="stopped">Stop</option></select>
+    <input name="reason" placeholder="Reason (short)" maxlength="100" required>
+    <button>Change status</button>
+  </form>
+  <form method="post" action="/admin/parents/{{$id}}/test-call">
+    <input type="hidden" name="csrf" value="{{$csrf}}">
+    <button class="secondary">Test call now (all guards apply)</button>
+  </form>
+  <p><a href="/admin/parents/{{$id}}/export">Export all data (JSON)</a></p>
+</div>
+<div class="card">
+  <h2>Schedule</h2>
+  <form method="post" action="/admin/parents/{{$id}}/schedule">
+    <input type="hidden" name="csrf" value="{{$csrf}}">
+    <label>Call time</label><input name="call_time" value="{{clock .Parent.CallTimeLocal}}" pattern="[0-2][0-9]:[0-5][0-9]" required>
+    <label>Window start</label><input name="window_start" value="{{clock .Parent.WindowStart}}" pattern="[0-2][0-9]:[0-5][0-9]" required>
+    <label>Window end</label><input name="window_end" value="{{clock .Parent.WindowEnd}}" pattern="[0-2][0-9]:[0-5][0-9]" required>
+    <button>Save schedule</button>
+  </form>
+</div>
+</div>
+
+<h2>Consents</h2>
+<table>
+<tr><th>Kind</th><th>Given by</th><th>Method</th><th>Script</th><th>Given</th><th>Withdrawn</th><th></th></tr>
+{{range .Consents}}<tr><td>{{.Kind}}</td><td>{{.GivenBy}}</td><td>{{.Method}}</td><td>{{.TextVersion}}</td><td>{{when .GivenAt}}</td><td>{{whenp .WithdrawnAt}}</td>
+<td>{{if not .WithdrawnAt}}<form method="post" action="/admin/parents/{{$id}}/consents"><input type="hidden" name="csrf" value="{{$csrf}}"><input type="hidden" name="action" value="withdraw"><input type="hidden" name="kind" value="{{.Kind}}"><button class="danger">Withdraw</button></form>{{end}}</td></tr>
+{{else}}<tr><td colspan="7" class="muted">No consents recorded. No calls will be made.</td></tr>{{end}}
+</table>
+<div class="card">
+<form method="post" action="/admin/parents/{{$id}}/consents">
+  <input type="hidden" name="csrf" value="{{$csrf}}"><input type="hidden" name="action" value="record">
+  <div class="row">
+    <div><label>Kind</label><select name="kind"><option>calls</option><option>data_processing</option><option>share_with_family</option><option>recording</option></select></div>
+    <div><label>Given by</label><select name="given_by"><option>parent</option><option>guardian</option></select></div>
+    <div><label>Method</label><select name="method"><option>in_person</option><option>form</option></select></div>
+    <div><label>Script version</label><input name="text_version" required maxlength="40" placeholder="e.g. consent-hi-v1"></div>
+    <div><label>Evidence (form id or note)</label><input name="evidence_ref" maxlength="100"></div>
+  </div>
+  <button>Record consent</button>
+</form>
+</div>
+
+<h2>Medicines</h2>
+<table>
+<tr><th>Name</th><th>Timing</th><th>Active</th><th></th></tr>
+{{range .Medicines}}<tr><td>{{.Name}}</td><td>{{.Timing}}</td><td>{{if .Active}}yes{{else}}no{{end}}</td>
+<td>{{if .Active}}<form method="post" action="/admin/parents/{{$id}}/medicines"><input type="hidden" name="csrf" value="{{$csrf}}"><input type="hidden" name="action" value="deactivate"><input type="hidden" name="medicine_id" value="{{.ID}}"><button class="secondary">Stop asking</button></form>{{end}}</td></tr>
+{{else}}<tr><td colspan="4" class="muted">None.</td></tr>{{end}}
+</table>
+<div class="card">
+<form method="post" action="/admin/parents/{{$id}}/medicines">
+  <input type="hidden" name="csrf" value="{{$csrf}}"><input type="hidden" name="action" value="add">
+  <div class="row"><div><label>Name</label><input name="name" required maxlength="80"></div><div><label>Timing</label><input name="timing" required maxlength="40" placeholder="after breakfast"></div></div>
+  <button>Add medicine</button>
+</form>
+</div>
+
+<h2>Recent calls</h2>
+<table>
+<tr><th>Scheduled</th><th>Attempt</th><th>Status</th><th>Report</th><th></th></tr>
+{{range .Calls}}<tr><td>{{when .ScheduledFor}}</td><td>{{.AttemptNo}}</td><td><span class="tag">{{.Status}}</span> <span class="muted">{{deref .EndReason}}</span></td>
+<td>{{if .ReportVersion}}{{if .ReportNeedsReview}}<span class="tag urgent">review</span>{{else}}ok{{end}}{{end}}</td>
+<td><a href="/admin/calls/{{.ID}}">open</a></td></tr>
+{{else}}<tr><td colspan="5" class="muted">No calls yet.</td></tr>{{end}}
+</table>
+
+<h2>Erase on request</h2>
+<div class="card">
+<p class="muted">Deletes transcripts, reports, memories, medicines and alert details, and anonymises the parent. Calls and alerts remain as counts only. This cannot be undone.</p>
+<form method="post" action="/admin/parents/{{$id}}/erase">
+  <input type="hidden" name="csrf" value="{{$csrf}}">
+  <label>Type <b>ERASE {{short $id}}</b> to confirm</label><input name="confirm" autocomplete="off" required>
+  <button class="danger">Erase</button>
+</form>
+</div>
+{{end}}{{end}}

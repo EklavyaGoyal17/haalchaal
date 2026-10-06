@@ -1,0 +1,33 @@
+{{define "content"}}{{with .Data}}
+<h1>Dashboard</h1>
+<div class="grid">
+  <div class="card stat"><span class="muted">Open alerts</span><b>{{.OpenAlerts}}</b>{{range .AlertsByType}}<span class="tag {{.Type}}">{{.Type}} {{.N}}</span> {{end}}</div>
+  <div class="card stat"><span class="muted">Average call (30 days)</span><b>{{minutes .AvgSeconds}} min</b></div>
+  <div class="card stat"><span class="muted">Median call → summary (30 days)</span><b>{{printf "%.1f" .MedianSummary}} min</b></div>
+  <div class="card stat"><span class="muted">Calls today</span><b>{{len .Today}}</b></div>
+</div>
+
+<h2>Today's calls</h2>
+<table>
+<tr><th>Time</th><th>Parent</th><th>Attempt</th><th>Status</th><th>Duration</th><th></th></tr>
+{{range .Today}}<tr>
+  <td>{{when .ScheduledFor}}</td><td><a href="/admin/parents/{{.ParentID}}">{{.PreferredName}}</a></td>
+  <td>{{.AttemptNo}}</td><td><span class="tag">{{.Status}}</span> <span class="muted">{{deref .EndReason}}</span></td>
+  <td>{{if .DurationSec}}{{derefi .DurationSec}}s{{end}}</td><td><a href="/admin/calls/{{.ID}}">open</a></td>
+</tr>{{else}}<tr><td colspan="6" class="muted">No calls scheduled today.</td></tr>{{end}}
+</table>
+
+<h2>Pickup rate (last 30 days)</h2>
+<table>
+<tr><th>Parent</th><th>Completed</th><th>Due</th><th>Rate</th></tr>
+{{range .Pickup}}<tr><td><a href="/admin/parents/{{.ID}}">{{.PreferredName}}</a></td><td>{{.Completed}}</td><td>{{.Due}}</td><td>{{pct .Completed .Due}}</td></tr>
+{{else}}<tr><td colspan="4" class="muted">No slots yet.</td></tr>{{end}}
+</table>
+
+<h2>Cost per family this month</h2>
+<table>
+<tr><th>Family</th><th>Plan</th><th>Cost</th></tr>
+{{range .Cost}}<tr><td>{{deref .Parents}}</td><td>{{.Plan}}</td><td>{{rupees .Paise}}</td></tr>
+{{else}}<tr><td colspan="3" class="muted">No calls this month.</td></tr>{{end}}
+</table>
+{{end}}{{end}}

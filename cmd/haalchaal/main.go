@@ -3,6 +3,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
@@ -13,11 +14,13 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/EklavyaGoyal17/haalchaal/internal/admin"
 	"github.com/EklavyaGoyal17/haalchaal/internal/app"
 	"github.com/EklavyaGoyal17/haalchaal/internal/config"
 	"github.com/EklavyaGoyal17/haalchaal/internal/crypto"
@@ -35,6 +38,7 @@ commands:
   dev       run serve and worker in one process (local development)
   migrate   up | down | status: manage database migrations
   genkey    print a new encryption key entry for ENCRYPTION_KEYS
+  hashpw    read a password on stdin and print an ADMIN_USERS bcrypt hash
   simcall   <scenario>: replay testdata/transcripts/<scenario>.json through the pipeline
 `
 
@@ -58,6 +62,8 @@ func main() {
 		err = runMigrate(ctx, log, os.Args[2:])
 	case "genkey":
 		err = genkey(os.Args[2:])
+	case "hashpw":
+		err = hashpw()
 	case "worker":
 		err = runWorker(ctx, log)
 	case "dev":
@@ -180,6 +186,13 @@ func serve(ctx context.Context, log *slog.Logger) error {
 		return err
 	}
 	api := &httpapi.Server{DB: pool, Migrations: m, Log: log, Voice: a.Voice, Calls: a.Calls, Messenger: a.Messenger, Outbound: a.Outbound}
+	adm, err := a.NewAdmin()
+	if err != nil {
+		return err
+	}
+	if adm != nil {
+		api.Admin = adm
+	}
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,
 		Handler:           api.Handler(),
@@ -294,5 +307,19 @@ func runSimcall(ctx context.Context, log *slog.Logger, args []string) error {
 		return fmt.Errorf("scenario %s: %d mismatches", sc.Name, len(problems))
 	}
 	fmt.Println("OK: scenario matches its expectations")
+	return nil
+}
+
+// hashpw reads one line (the password) from stdin and prints its bcrypt hash.
+func hashpw() error {
+	line, err := bufio.NewReader(os.Stdin).ReadString('\n')
+	if err != nil && line == "" {
+		return errors.New("usage: echo 'long password' | haalchaal hashpw")
+	}
+	h, err := admin.HashPassword(strings.TrimRight(line, "\r\n"))
+	if err != nil {
+		return err
+	}
+	fmt.Println(h)
 	return nil
 }

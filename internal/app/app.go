@@ -13,6 +13,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/EklavyaGoyal17/haalchaal/internal/admin"
 	"github.com/EklavyaGoyal17/haalchaal/internal/alerts"
 	"github.com/EklavyaGoyal17/haalchaal/internal/calls"
 	"github.com/EklavyaGoyal17/haalchaal/internal/clock"
@@ -209,4 +210,21 @@ func (a *App) RunScheduler(ctx context.Context) error {
 		case <-t.C:
 		}
 	}
+}
+
+// NewAdmin builds the admin pages, or returns nil (with a warning) when no
+// ADMIN_USERS are configured, which config only allows in dev.
+func (a *App) NewAdmin() (*admin.Handler, error) {
+	users, err := admin.ParseUsers(a.Config.AdminUsers)
+	if err != nil {
+		return nil, err
+	}
+	if len(users) == 0 {
+		a.Log.Warn("ADMIN_USERS not set: admin pages disabled")
+		return nil, nil
+	}
+	return admin.New(admin.Handler{
+		Pool: a.Pool, Clock: a.Clock, Log: a.Log, Keyring: a.Keyring, Users: users,
+		CSRFKey: a.Keyring.DeriveKey("admin-csrf/v1"), Calls: a.Calls, Location: a.Config.DefaultTimezone,
+	})
 }

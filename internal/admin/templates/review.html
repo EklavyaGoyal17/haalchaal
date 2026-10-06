@@ -1,0 +1,38 @@
+{{define "content"}}{{$csrf := .CSRF}}{{with .Data}}
+<h1>Review queue</h1>
+
+<h2>Open alerts ({{len .Alerts}})</h2>
+<table>
+<tr><th>Raised</th><th>Parent</th><th>Type</th><th>Category</th><th>Source</th><th>Status</th><th>Detail</th><th>Resolve</th></tr>
+{{range .Alerts}}<tr>
+  <td>{{when .CreatedAt}}</td><td><a href="/admin/parents/{{.ParentID}}">{{.PreferredName}}</a></td>
+  <td><span class="tag {{.Type}}">{{.Type}}</span></td><td>{{.Category}}</td><td>{{.Source}}</td>
+  <td>{{.Status}} (step {{.EscalationStep}})</td>
+  <td>{{.Detail}}{{if .CallID}}<br><a href="/admin/calls/{{.CallID}}">call</a>{{end}}</td>
+  <td><form method="post" action="/admin/alerts/{{.ID}}/resolve">
+    <input type="hidden" name="csrf" value="{{$csrf}}">
+    <select name="status"><option value="resolved">Resolved</option><option value="false_alarm">False alarm</option></select>
+    <input name="note" placeholder="Note (required)" maxlength="500" required>
+    <button>Save</button></form></td>
+</tr>{{else}}<tr><td colspan="8" class="muted">No open alerts.</td></tr>{{end}}
+</table>
+
+<h2>Reports needing review ({{len .Reports}})</h2>
+<table>
+<tr><th>Created</th><th>Parent</th><th>Confidence</th><th>Red flags</th><th></th></tr>
+{{range .Reports}}<tr>
+  <td>{{when .CreatedAt}}</td><td><a href="/admin/parents/{{.ParentID}}">{{.PreferredName}}</a></td>
+  <td>{{if eq .SchemaVersion "invalid"}}<span class="tag emergency">invalid model output</span>{{else}}{{printf "%.2f" .Confidence}}{{end}}</td>
+  <td>{{.RedFlagCount}}</td><td><a href="/admin/calls/{{.CallID}}">open call</a></td>
+</tr>{{else}}<tr><td colspan="5" class="muted">Nothing to review.</td></tr>{{end}}
+</table>
+
+<h2>Messages from families ({{len .Inbound}})</h2>
+<table>
+<tr><th>Received</th><th>From</th><th>Message</th><th></th></tr>
+{{range .Inbound}}<tr>
+  <td>{{when .ReceivedAt}}</td><td>{{if .MemberName}}{{.MemberName}}{{else}}{{mask .From}} (unknown){{end}}</td><td>{{.Body}}</td>
+  <td><form method="post" action="/admin/inbound/{{.ID}}/handled"><input type="hidden" name="csrf" value="{{$csrf}}"><button class="secondary">Handled</button></form></td>
+</tr>{{else}}<tr><td colspan="4" class="muted">No unhandled messages.</td></tr>{{end}}
+</table>
+{{end}}{{end}}

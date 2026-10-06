@@ -1,0 +1,63 @@
+{{define "content"}}{{$csrf := .CSRF}}{{with .Data}}
+<h1>Onboard a family</h1>
+{{if .Problems}}<div class="error"><b>Please fix:</b><ul>{{range .Problems}}<li>{{.}}</li>{{end}}</ul></div>{{end}}
+<form method="post" action="/admin/accounts/new">
+<input type="hidden" name="csrf" value="{{$csrf}}">
+<fieldset><legend>Plan</legend>
+  <select name="plan"><option value="daily" {{if eq .F.Plan "daily"}}selected{{end}}>daily (every day)</option><option value="basic" {{if eq .F.Plan "basic"}}selected{{end}}>basic (Mon, Wed, Fri)</option></select>
+</fieldset>
+
+<fieldset><legend>Parent</legend>
+<div class="row">
+  <div><label>How the agent addresses them</label><input name="parent_name" value="{{.F.ParentName}}" required maxlength="60" placeholder="Kamla ji"></div>
+  <div><label>Phone</label><input name="parent_phone" value="{{.F.ParentPhone}}" required placeholder="98765 43210"></div>
+  <div><label>Language</label><select name="language"><option value="hi" {{if eq .F.Language "hi"}}selected{{end}}>Hindi</option><option value="ta" {{if eq .F.Language "ta"}}selected{{end}}>Tamil</option><option value="en" {{if eq .F.Language "en"}}selected{{end}}>English</option></select></div>
+</div>
+<div class="row">
+  <div><label>Call time</label><input name="call_time" value="{{.F.CallTime}}" required pattern="[0-2][0-9]:[0-5][0-9]"></div>
+  <div><label>Window start</label><input name="window_start" value="{{.F.WindowStart}}" required pattern="[0-2][0-9]:[0-5][0-9]"></div>
+  <div><label>Window end</label><input name="window_end" value="{{.F.WindowEnd}}" required pattern="[0-2][0-9]:[0-5][0-9]"></div>
+  <div><label>Timezone</label><input name="timezone" value="{{.F.Timezone}}" required></div>
+</div>
+<div class="row">
+  <div><label>Interests (comma separated, up to 3)</label><input name="interests" value="{{.F.Interests}}" maxlength="200" placeholder="bhajans, cricket, grandchildren"></div>
+  <div><label>Family code word (optional)</label><input name="safe_word" value="{{.F.SafeWord}}" maxlength="40"></div>
+  <div><label>Local contact name (optional)</label><input name="local_name" value="{{.F.LocalName}}" maxlength="60"></div>
+  <div><label>Local contact phone</label><input name="local_phone" value="{{.F.LocalPhone}}"></div>
+</div>
+</fieldset>
+
+<fieldset><legend>Family members (priority order; first is primary)</legend>
+{{range $i, $m := .F.Members}}
+<div class="row">
+  <div><label>Name {{inc $i}}</label><input name="member_name" value="{{$m.Name}}" maxlength="60" {{if eq $i 0}}required{{end}}></div>
+  <div><label>Phone</label><input name="member_phone" value="{{$m.Phone}}"></div>
+  <div><label>Relation</label><input name="member_relation" value="{{$m.Relation}}" maxlength="30"></div>
+  <div><label>Summary language</label><select name="member_language"><option value="en" {{if eq $m.Language "en"}}selected{{end}}>English</option><option value="hi" {{if eq $m.Language "hi"}}selected{{end}}>Hindi</option></select></div>
+  <div><label><input type="checkbox" name="member_optin_{{$i}}" value="yes" {{if $m.OptIn}}checked{{end}}> Agreed to WhatsApp messages</label></div>
+</div>{{end}}
+</fieldset>
+
+<fieldset><legend>Medicines</legend>
+{{range $i, $m := .F.Medicines}}
+<div class="row">
+  <div><label>Name</label><input name="med_name" value="{{$m.Name}}" maxlength="80"></div>
+  <div><label>Timing</label><input name="med_timing" value="{{$m.Timing}}" maxlength="40" placeholder="after breakfast"></div>
+</div>{{end}}
+</fieldset>
+
+<fieldset><legend>Consent (recorded in person, SPEC §13)</legend>
+  <label><input type="checkbox" name="consent_calls" value="yes" {{if .F.ConsentCalls}}checked{{end}}> Daily calls</label>
+  <label><input type="checkbox" name="consent_data" value="yes" {{if .F.ConsentData}}checked{{end}}> Processing of call data</label>
+  <label><input type="checkbox" name="consent_share" value="yes" {{if .F.ConsentShare}}checked{{end}}> Sharing summaries with the family</label>
+  <label><input type="checkbox" name="consent_recording" value="yes" {{if .F.ConsentRecording}}checked{{end}}> Call recording (optional)</label>
+  <div class="row">
+    <div><label>Given by</label><select name="given_by"><option value="parent">parent</option><option value="guardian" {{if eq .F.GivenBy "guardian"}}selected{{end}}>guardian</option></select></div>
+    <div><label>Script version read</label><input name="text_version" value="{{.F.TextVersion}}" maxlength="40" placeholder="consent-hi-v1"></div>
+    <div><label>Evidence (form id or note)</label><input name="evidence_ref" value="{{.F.EvidenceRef}}" maxlength="100"></div>
+  </div>
+  <label><input type="checkbox" name="activate" value="yes" {{if .F.Activate}}checked{{end}}> Start daily calls now (needs the first three consents)</label>
+</fieldset>
+<button>Create family</button>
+</form>
+{{end}}{{end}}

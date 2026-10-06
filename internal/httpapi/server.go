@@ -37,6 +37,9 @@ type Server struct {
 	Messenger notify.Messenger
 	Outbound  *outbound.Service
 
+	// Admin serves /admin when configured (nil disables the admin pages).
+	Admin interface{ Register(*http.ServeMux) }
+
 	// MaxInFlight bounds concurrent requests per instance (default 256);
 	// excess requests get 503 so a flood cannot exhaust the database pool.
 	MaxInFlight int
@@ -53,6 +56,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /v1/voice/tools/{tool}", s.voiceTool)
 	mux.HandleFunc("GET /v1/webhooks/whatsapp", s.whatsappVerify)
 	mux.HandleFunc("POST /v1/webhooks/whatsapp", s.whatsappWebhook)
+	if s.Admin != nil {
+		s.Admin.Register(mux)
+	}
 	n := s.MaxInFlight
 	if n <= 0 {
 		n = 256

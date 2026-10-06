@@ -36,7 +36,7 @@ func (q *Queries) DeleteTranscript(ctx context.Context, callID uuid.UUID) (int64
 }
 
 const getCallReport = `-- name: GetCallReport :one
-SELECT call_id, schema_version, report_enc, red_flag_count, confidence, needs_review, model, created_at FROM call_reports WHERE call_id = $1
+SELECT call_id, schema_version, report_enc, red_flag_count, confidence, needs_review, model, created_at, reviewed_by, reviewed_at FROM call_reports WHERE call_id = $1
 `
 
 func (q *Queries) GetCallReport(ctx context.Context, callID uuid.UUID) (CallReport, error) {
@@ -51,6 +51,8 @@ func (q *Queries) GetCallReport(ctx context.Context, callID uuid.UUID) (CallRepo
 		&i.NeedsReview,
 		&i.Model,
 		&i.CreatedAt,
+		&i.ReviewedBy,
+		&i.ReviewedAt,
 	)
 	return i, err
 }
@@ -126,7 +128,7 @@ func (q *Queries) ListOptedInMembers(ctx context.Context, accountID uuid.UUID) (
 }
 
 const listRecentReports = `-- name: ListRecentReports :many
-SELECT r.call_id, r.schema_version, r.report_enc, r.red_flag_count, r.confidence, r.needs_review, r.model, r.created_at FROM call_reports r
+SELECT r.call_id, r.schema_version, r.report_enc, r.red_flag_count, r.confidence, r.needs_review, r.model, r.created_at, r.reviewed_by, r.reviewed_at FROM call_reports r
 JOIN calls c ON c.id = r.call_id
 WHERE c.parent_id = $1 AND r.call_id <> $2 AND r.schema_version = '1'
   AND r.created_at <= $3
@@ -165,6 +167,8 @@ func (q *Queries) ListRecentReports(ctx context.Context, arg ListRecentReportsPa
 			&i.NeedsReview,
 			&i.Model,
 			&i.CreatedAt,
+			&i.ReviewedBy,
+			&i.ReviewedAt,
 		); err != nil {
 			return nil, err
 		}

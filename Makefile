@@ -12,7 +12,7 @@ SQLC_IMAGE := sqlc/sqlc:1.29.0
 GOBIN := $(subst \,/,$(shell go env GOPATH))/bin
 STATICCHECK := $(firstword $(wildcard $(GOBIN)/staticcheck $(GOBIN)/staticcheck.exe))
 
-.PHONY: dev db-up db-down test-db test test-integration lint migrate-up migrate-down migrate-status sqlc genkey simcall
+.PHONY: hashpw dev db-up db-down test-db test test-integration lint migrate-up migrate-down migrate-status sqlc genkey simcall
 
 ## dev: start Postgres, apply migrations, run the server and the worker with fake vendors
 dev: db-up migrate-up
@@ -59,6 +59,10 @@ migrate-status:
 ## sqlc: regenerate internal/db from queries/ (runs in Docker; sqlc needs cgo)
 sqlc:
 	docker run --rm -v "$(CURDIR):/src" -w /src $(SQLC_IMAGE) generate
+
+## hashpw: print a bcrypt hash for ADMIN_USERS (type the password, then Enter)
+hashpw:
+	go run ./cmd/haalchaal hashpw
 
 ## genkey: print a new ENCRYPTION_KEYS entry (pass KID=2 for a rotation key)
 genkey:

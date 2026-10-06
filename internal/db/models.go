@@ -73,6 +73,8 @@ type CallReport struct {
 	NeedsReview   bool
 	Model         string
 	CreatedAt     time.Time
+	ReviewedBy    *string
+	ReviewedAt    *time.Time
 }
 
 type CallSlot struct {

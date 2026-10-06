@@ -25,3 +25,26 @@ func TestValidE164(t *testing.T) {
 		}
 	}
 }
+
+func TestNormalizePhone(t *testing.T) {
+	tests := []struct {
+		in, want string
+		ok       bool
+	}{
+		{"+91 98765 43210", "+919876543210", true},
+		{"98765-43210", "+919876543210", true},
+		{"098765 43210", "+919876543210", true},
+		{"0091 9876543210", "+919876543210", true},
+		{"+44 (20) 7946 0958", "+442079460958", true},
+		{"12345", "12345", false},
+		{"5876543210", "5876543210", false}, // not an Indian mobile prefix, no country code
+		{"98765x43210", "", false},
+		{"9876+543210", "", false},
+	}
+	for _, tt := range tests {
+		got, ok := NormalizePhone(tt.in)
+		if ok != tt.ok || (ok && got != tt.want) {
+			t.Errorf("NormalizePhone(%q) = %q %v, want %q %v", tt.in, got, ok, tt.want, tt.ok)
+		}
+	}
+}

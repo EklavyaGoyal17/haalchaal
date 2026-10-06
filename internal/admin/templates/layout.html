@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Title}} · HaalChaal admin</title>
+<link rel="stylesheet" href="/admin/static/admin.css">
+</head>
+<body>
+<header>
+  <strong>HaalChaal</strong>
+  <a href="/admin">Dashboard</a>
+  <a href="/admin/review">Review queue</a>
+  <a href="/admin/parents">Parents</a>
+  <a href="/admin/accounts/new">Onboard a family</a>
+  <span class="who">{{.Admin}}</span>
+</header>
+<main>
+{{if .Flash}}<div class="flash">{{.Flash}}</div>{{end}}
+{{if .Error}}<div class="error">{{.Error}}</div>{{end}}
+{{template "content" .}}
+</main>
+</body>
+</html>
