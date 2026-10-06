@@ -132,7 +132,9 @@ func (r *Report) Validate() error {
 	var p []string
 	enum := func(field, v string, allowed []string) {
 		if !slices.Contains(allowed, v) {
-			p = append(p, fmt.Sprintf("%s %q is not one of %s", field, v, strings.Join(allowed, ", ")))
+			// Echo at most a short prefix: a model may put call content in
+			// an enum field, and this text reaches job errors.
+			p = append(p, fmt.Sprintf("%s %q is not one of %s", field, capStr(v, 20), strings.Join(allowed, ", ")))
 		}
 	}
 	if r.SchemaVersion != SchemaVersion {

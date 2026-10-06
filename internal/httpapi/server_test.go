@@ -72,3 +72,46 @@ func TestRecovererHidesPanic(t *testing.T) {
 		t.Fatalf("body = %q", body)
 	}
 }
+
+func TestSecurityHeaders(t *testing.T) {
+	s := &Server{Log: slog.New(slog.NewJSONHandler(io.Discard, nil))}
+	rec := httptest.NewRecorder()
+	s.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/healthz", nil))
+	for _, h := range []string{"X-Content-Type-Options", "X-Frame-Options", "Content-Security-Policy", "Referrer-Policy", "Cache-Control", "X-Request-Id"} {
+		if rec.Header().Get(h) == "" {
+			t.Errorf("missing %s", h)
+		}
+	}
+	if rec.Header().Get("Strict-Transport-Security") != "" {
+		t.Error("HSTS on plain HTTP")
+	}
+	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	req.Header.Set("X-Forwarded-Proto", "https")
+	rec = httptest.NewRecorder()
+	s.Handler().ServeHTTP(rec, req)
+	if rec.Header().Get("Strict-Transport-Security") == "" {
+		t.Error("no HSTS behind TLS proxy")
+	}
+}
+
+func TestLoadShedding(t *testing.T) {
+	block := make(chan struct{})
+	started := make(chan struct{}, 4)
+	s := &Server{Log: slog.New(slog.NewJSONHandler(io.Discard, nil)), MaxInFlight: 2}
+	_ = s.Handler() // initialises the semaphore
+	slow := s.limitInFlight(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		started <- struct{}{}
+		<-block
+	}))
+	for range 2 {
+		go slow.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/x", nil))
+	}
+	<-started
+	<-started
+	rec := httptest.NewRecorder()
+	slow.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/x", nil))
+	if rec.Code != http.StatusServiceUnavailable || rec.Header().Get("Retry-After") == "" {
+		t.Fatalf("third request: %d", rec.Code)
+	}
+	close(block)
+}

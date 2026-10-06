@@ -36,6 +36,12 @@ type Server struct {
 
 	Messenger notify.Messenger
 	Outbound  *outbound.Service
+
+	// MaxInFlight bounds concurrent requests per instance (default 256);
+	// excess requests get 503 so a flood cannot exhaust the database pool.
+	MaxInFlight int
+
+	sem chan struct{}
 }
 
 // Handler returns the root handler with middleware applied.
@@ -47,7 +53,49 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /v1/voice/tools/{tool}", s.voiceTool)
 	mux.HandleFunc("GET /v1/webhooks/whatsapp", s.whatsappVerify)
 	mux.HandleFunc("POST /v1/webhooks/whatsapp", s.whatsappWebhook)
-	return s.requestID(s.recoverer(mux))
+	n := s.MaxInFlight
+	if n <= 0 {
+		n = 256
+	}
+	s.sem = make(chan struct{}, n)
+	return s.securityHeaders(s.requestID(s.limitInFlight(s.recoverer(mux))))
+}
+
+// securityHeaders sets conservative headers on every response. Nothing here
+// is meant to be framed, sniffed, cached or embedded elsewhere.
+func (s *Server) securityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		h.Set("X-Content-Type-Options", "nosniff")
+		h.Set("X-Frame-Options", "DENY")
+		h.Set("Referrer-Policy", "no-referrer")
+		h.Set("Cache-Control", "no-store")
+		h.Set("Content-Security-Policy", "default-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
+		h.Set("Cross-Origin-Opener-Policy", "same-origin")
+		if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
+			h.Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// limitInFlight sheds load beyond MaxInFlight concurrent requests. Health
+// checks are exempt so a busy instance is not marked dead.
+func (s *Server) limitInFlight(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/healthz" {
+			next.ServeHTTP(w, r)
+			return
+		}
+		select {
+		case s.sem <- struct{}{}:
+			defer func() { <-s.sem }()
+			next.ServeHTTP(w, r)
+		default:
+			w.Header().Set("Retry-After", "1")
+			writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "busy"})
+		}
+	})
 }
 
 func (s *Server) healthz(w http.ResponseWriter, r *http.Request) {
