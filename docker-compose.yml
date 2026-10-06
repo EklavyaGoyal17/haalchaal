@@ -1,0 +1,19 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: haalchaal
+      POSTGRES_PASSWORD: haalchaal_dev # local dev only
+      POSTGRES_DB: haalchaal
+    ports:
+      - "127.0.0.1:55432:5432" # never exposed beyond this machine
+    volumes:
+      - pgdata:/var/lib/postgresql/data # named volume, kept out of OneDrive
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U haalchaal -d haalchaal"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  pgdata:
