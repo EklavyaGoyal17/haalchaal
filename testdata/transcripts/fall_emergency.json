@@ -1,0 +1,102 @@
+{
+  "name": "fall_emergency",
+  "description": "The parent mentions a fall: emergency alert (escalation is tested in M5).",
+  "parent": {
+    "preferred_name": "Kamla ji",
+    "language": "hi",
+    "first_call_done": true
+  },
+  "family": [
+    {
+      "name": "Rahul",
+      "relation": "son",
+      "language": "en"
+    },
+    {
+      "name": "Priya",
+      "relation": "daughter",
+      "language": "en"
+    }
+  ],
+  "medicines": [
+    {
+      "name": "Amlodipine 5mg",
+      "timing": "after breakfast"
+    }
+  ],
+  "attempts": [
+    {
+      "events": [
+        {
+          "type": "ringing",
+          "after_sec": 3
+        },
+        {
+          "type": "answered",
+          "after_sec": 9
+        },
+        {
+          "type": "completed",
+          "after_sec": 189,
+          "duration_sec": 180,
+          "cost_paise": 1100
+        }
+      ],
+      "transcript": [
+        {
+          "speaker": "agent",
+          "text": "Namaste Kamla ji, main HaalChaal hoon, Rahul ka banaya hua AI sahayak. Aap kaise hain?",
+          "offset_ms": 0
+        },
+        {
+          "speaker": "parent",
+          "text": "Beta, kal raat bathroom mein gir gayi thi, kamar mein bahut dard hai.",
+          "offset_ms": 6000
+        },
+        {
+          "speaker": "agent",
+          "text": "Yeh sunkar chinta hui. Kripya abhi 112 par call kijiye ya kisi paas wale ko bulaiye. Main Rahul ko turant bata rahi hoon.",
+          "offset_ms": 12000
+        },
+        {
+          "speaker": "parent",
+          "text": "Haan theek hai, padosan ko bulati hoon.",
+          "offset_ms": 18000
+        }
+      ]
+    }
+  ],
+  "expected": {
+    "attempts": [
+      "completed"
+    ],
+    "slot_status": "completed",
+    "needs_review": true,
+    "alerts": [
+      {
+        "type": "emergency",
+        "category": "fall",
+        "source": "model"
+      }
+    ],
+    "report": {
+      "red_flags": [
+        {
+          "category": "fall",
+          "severity": "emergency",
+          "quote": "Beta, kal raat bathroom mein gir gayi thi, kamar mein bahut dard hai."
+        }
+      ],
+      "pain": [
+        {
+          "location": "back",
+          "trend": "unknown",
+          "quote": "Beta, kal raat bathroom mein gir gayi thi, kamar mein bahut dard hai."
+        }
+      ],
+      "follow_ups": [
+        "Ask how the back pain is"
+      ]
+    }
+  }
+}

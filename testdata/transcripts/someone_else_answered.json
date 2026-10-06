@@ -1,0 +1,86 @@
+{
+  "name": "someone_else_answered",
+  "description": "The daughter-in-law answers: no health data is stored or sent; the summary only says someone else answered.",
+  "parent": {
+    "preferred_name": "Kamla ji",
+    "language": "hi",
+    "first_call_done": true
+  },
+  "family": [
+    {
+      "name": "Rahul",
+      "relation": "son",
+      "language": "en"
+    },
+    {
+      "name": "Priya",
+      "relation": "daughter",
+      "language": "en"
+    }
+  ],
+  "medicines": [
+    {
+      "name": "Amlodipine 5mg",
+      "timing": "after breakfast"
+    }
+  ],
+  "attempts": [
+    {
+      "events": [
+        {
+          "type": "ringing",
+          "after_sec": 3
+        },
+        {
+          "type": "answered",
+          "after_sec": 9
+        },
+        {
+          "type": "completed",
+          "after_sec": 189,
+          "duration_sec": 180,
+          "cost_paise": 1100
+        }
+      ],
+      "transcript": [
+        {
+          "speaker": "agent",
+          "text": "Namaste Kamla ji, main HaalChaal hoon, Rahul ka banaya hua AI sahayak. Aap kaise hain?",
+          "offset_ms": 0
+        },
+        {
+          "speaker": "parent",
+          "text": "Main unki bahu bol rahi hoon, mummy ji mandir gayi hain, unka ghutne ka dard bhi badh gaya hai.",
+          "offset_ms": 6000
+        },
+        {
+          "speaker": "agent",
+          "text": "Dhanyavaad. Main baad mein Kamla ji se baat karungi.",
+          "offset_ms": 12000
+        },
+        {
+          "speaker": "parent",
+          "text": "Ji, shaam ko aayengi.",
+          "offset_ms": 18000
+        }
+      ]
+    }
+  ],
+  "expected": {
+    "attempts": [
+      "completed"
+    ],
+    "slot_status": "completed",
+    "alerts": [],
+    "needs_review": true,
+    "report": {
+      "answered_by": "someone_else",
+      "mood": "unknown",
+      "medicines": [],
+      "pain": [],
+      "follow_ups": [],
+      "family_summary": "Someone else answered today's call, so we could not speak with Kamla ji."
+    },
+    "transcript_deleted": true
+  }
+}

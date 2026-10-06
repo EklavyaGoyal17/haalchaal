@@ -42,6 +42,12 @@ type Result struct {
 	Alerts          []ExpectedAlert `json:"alerts"`
 	Dials           int             `json:"dials"`
 	ReplayUnchanged bool            `json:"replay_unchanged"`
+	Report          json.RawMessage `json:"report,omitempty"`
+	ReportVersion   string          `json:"report_version,omitempty"`
+	NeedsReview     *bool           `json:"needs_review,omitempty"`
+	Prompts         []string        `json:"-"` // rendered agent prompts, in dial order
+	FollowUps       []string        `json:"follow_ups_saved,omitempty"`
+	TranscriptsKept int             `json:"transcripts_kept"`
 }
 
 // Runner holds what a run needs.
@@ -302,6 +308,37 @@ func (rn *run) result(ctx context.Context, slotID uuid.UUID) (Result, error) {
 	}
 	for _, c := range cs {
 		res.Attempts = append(res.Attempts, c.Status)
+		if _, err := q.GetTranscript(ctx, c.ID); err == nil {
+			res.TranscriptsKept++
+		}
+		rep, err := q.GetCallReport(ctx, c.ID)
+		if err != nil {
+			continue
+		}
+		plain, err := rn.app.Keyring.Decrypt(rep.ReportEnc, calls.AADReport)
+		if err != nil {
+			return res, err
+		}
+		res.Report, res.ReportVersion = plain, rep.SchemaVersion
+		nr := rep.NeedsReview
+		res.NeedsReview = &nr
+	}
+	for _, c := range rn.voice.Calls() {
+		res.Prompts = append(res.Prompts, c.SystemPrompt)
+	}
+	mems, err := q.ListActiveFollowUps(ctx, db.ListActiveFollowUpsParams{ParentID: rn.parentID, Now: ptr(rn.clk.Now()), MaxItems: 10})
+	if err != nil {
+		return res, err
+	}
+	for _, m := range mems {
+		if m.SourceCallID == nil {
+			continue
+		}
+		f, err := rn.app.Keyring.DecryptString(m.ContentEnc, calls.AADMemory)
+		if err != nil {
+			return res, err
+		}
+		res.FollowUps = append(res.FollowUps, f)
 	}
 	slot, err := q.GetSlot(ctx, slotID)
 	if err != nil {
@@ -380,8 +417,73 @@ func Check(exp Expected, res Result) []string {
 	if !res.ReplayUnchanged {
 		out = append(out, "replaying the same events changed state")
 	}
+	if exp.NeedsReview != nil && (res.NeedsReview == nil || *res.NeedsReview != *exp.NeedsReview) {
+		out = append(out, fmt.Sprintf("needs_review = %v, want %v", deref(res.NeedsReview), *exp.NeedsReview))
+	}
+	if exp.Report != nil {
+		out = append(out, checkReport(*exp.Report, res.Report)...)
+	}
+	if exp.TranscriptDeleted && res.TranscriptsKept > 0 {
+		out = append(out, fmt.Sprintf("%d transcripts kept, want none", res.TranscriptsKept))
+	}
+	var summary struct {
+		FamilySummary string `json:"family_summary"`
+	}
+	_ = json.Unmarshal(res.Report, &summary)
+	for _, bad := range exp.MustNotSend {
+		if strings.Contains(strings.ToLower(summary.FamilySummary), strings.ToLower(bad)) {
+			out = append(out, fmt.Sprintf("family summary contains %q", bad))
+		}
+	}
 	return out
 }
+
+// checkReport compares each key of the expected subset with the stored report.
+func checkReport(exp, got json.RawMessage) []string {
+	if len(got) == 0 {
+		return []string{"no report was stored"}
+	}
+	var want, have map[string]json.RawMessage
+	if err := json.Unmarshal(exp, &want); err != nil {
+		return []string{"expected report is not an object: " + err.Error()}
+	}
+	if err := json.Unmarshal(got, &have); err != nil {
+		return []string{"stored report is not an object: " + err.Error()}
+	}
+	var out []string
+	keys := make([]string, 0, len(want))
+	for k := range want {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		if canon(want[k]) != canon(have[k]) {
+			out = append(out, fmt.Sprintf("report.%s = %s, want %s", k, canon(have[k]), canon(want[k])))
+		}
+	}
+	return out
+}
+
+func canon(b json.RawMessage) string {
+	if len(b) == 0 {
+		return "<missing>"
+	}
+	var v any
+	if err := json.Unmarshal(b, &v); err != nil {
+		return string(b)
+	}
+	out, _ := json.Marshal(v)
+	return string(out)
+}
+
+func deref(b *bool) any {
+	if b == nil {
+		return nil
+	}
+	return *b
+}
+
+func ptr[T any](v T) *T { return &v }
 
 // randomPhone returns a +91 9xxxxxxxxx number for a simulated person.
 func randomPhone() string {

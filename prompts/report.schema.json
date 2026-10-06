@@ -1,1 +1,253 @@
-{}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://haalchaal.app/schemas/report-v1.json",
+  "title": "HaalChaal call report v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "call_quality",
+    "answered_by",
+    "mood",
+    "sleep",
+    "appetite",
+    "medicines",
+    "pain",
+    "red_flags",
+    "scam_signals",
+    "call_preferences",
+    "messages_for_family",
+    "follow_ups",
+    "private_notes",
+    "family_summary",
+    "confidence"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1"
+    },
+    "call_quality": {
+      "type": "string",
+      "enum": [
+        "good",
+        "partial",
+        "unusable"
+      ]
+    },
+    "answered_by": {
+      "type": "string",
+      "enum": [
+        "parent",
+        "someone_else",
+        "unknown"
+      ]
+    },
+    "mood": {
+      "type": "string",
+      "enum": [
+        "good",
+        "ok",
+        "low",
+        "distressed",
+        "unknown"
+      ]
+    },
+    "sleep": {
+      "type": "string",
+      "enum": [
+        "good",
+        "poor",
+        "unknown"
+      ]
+    },
+    "appetite": {
+      "type": "string",
+      "enum": [
+        "normal",
+        "poor",
+        "unknown"
+      ]
+    },
+    "medicines": {
+      "type": "array",
+      "maxItems": 10,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "taken"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 300
+          },
+          "taken": {
+            "type": "string",
+            "enum": [
+              "yes",
+              "no",
+              "unsure",
+              "not_asked"
+            ]
+          }
+        }
+      }
+    },
+    "pain": {
+      "type": "array",
+      "maxItems": 10,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "location",
+          "trend",
+          "quote"
+        ],
+        "properties": {
+          "location": {
+            "type": "string",
+            "maxLength": 300
+          },
+          "trend": {
+            "type": "string",
+            "enum": [
+              "new",
+              "better",
+              "same",
+              "worse",
+              "unknown"
+            ]
+          },
+          "quote": {
+            "type": "string",
+            "maxLength": 200
+          }
+        }
+      }
+    },
+    "red_flags": {
+      "type": "array",
+      "maxItems": 10,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "category",
+          "severity",
+          "quote"
+        ],
+        "properties": {
+          "category": {
+            "type": "string",
+            "enum": [
+              "fall",
+              "chest_pain",
+              "breathing",
+              "fainting",
+              "stroke_signs",
+              "bleeding",
+              "confusion",
+              "self_harm",
+              "other"
+            ]
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "emergency",
+              "urgent"
+            ]
+          },
+          "quote": {
+            "type": "string",
+            "maxLength": 200
+          }
+        }
+      }
+    },
+    "scam_signals": {
+      "type": "array",
+      "maxItems": 10,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "pattern",
+          "quote"
+        ],
+        "properties": {
+          "pattern": {
+            "type": "string",
+            "enum": [
+              "agency_threat",
+              "otp_or_bank_request",
+              "money_request",
+              "video_call_pressure",
+              "other"
+            ]
+          },
+          "quote": {
+            "type": "string",
+            "maxLength": 200
+          }
+        }
+      }
+    },
+    "call_preferences": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stop_requested",
+        "new_time_requested"
+      ],
+      "properties": {
+        "stop_requested": {
+          "type": "boolean"
+        },
+        "new_time_requested": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+        }
+      }
+    },
+    "messages_for_family": {
+      "type": "array",
+      "maxItems": 10,
+      "items": {
+        "type": "string",
+        "maxLength": 300
+      }
+    },
+    "follow_ups": {
+      "type": "array",
+      "maxItems": 3,
+      "items": {
+        "type": "string",
+        "maxLength": 300
+      }
+    },
+    "private_notes": {
+      "type": "array",
+      "maxItems": 10,
+      "items": {
+        "type": "string",
+        "maxLength": 300
+      }
+    },
+    "family_summary": {
+      "type": "string",
+      "maxLength": 900
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    }
+  }
+}

@@ -1,0 +1,104 @@
+{
+  "name": "normal_tamil",
+  "description": "Tamil call; the family summary comes out in English.",
+  "parent": {
+    "preferred_name": "Lakshmi amma",
+    "language": "ta",
+    "first_call_done": true
+  },
+  "family": [
+    {
+      "name": "Priya",
+      "relation": "daughter",
+      "language": "en"
+    }
+  ],
+  "medicines": [
+    {
+      "name": "Metformin 500mg",
+      "timing": "after breakfast"
+    }
+  ],
+  "attempts": [
+    {
+      "events": [
+        {
+          "type": "ringing",
+          "after_sec": 3
+        },
+        {
+          "type": "answered",
+          "after_sec": 9
+        },
+        {
+          "type": "completed",
+          "after_sec": 189,
+          "duration_sec": 180,
+          "cost_paise": 1100
+        }
+      ],
+      "transcript": [
+        {
+          "speaker": "agent",
+          "text": "Vanakkam Lakshmi amma, naan HaalChaal, Priya amaithu kodutha AI udhaviyaalar. Eppadi irukeenga?",
+          "offset_ms": 0
+        },
+        {
+          "speaker": "parent",
+          "text": "நான் நல்லா இருக்கேன், நேத்து ராத்திரி நல்லா தூங்கினேன்.",
+          "offset_ms": 6000
+        },
+        {
+          "speaker": "agent",
+          "text": "Metformin maathirai saapteengala?",
+          "offset_ms": 12000
+        },
+        {
+          "speaker": "parent",
+          "text": "ஆமா, காலையில போட்டுட்டேன்.",
+          "offset_ms": 18000
+        },
+        {
+          "speaker": "agent",
+          "text": "Saapadu eppadi?",
+          "offset_ms": 24000
+        },
+        {
+          "speaker": "parent",
+          "text": "இட்லி சாப்பிட்டேன், ரொம்ப நல்லா இருந்தது.",
+          "offset_ms": 30000
+        },
+        {
+          "speaker": "parent",
+          "text": "பேரன் நேத்து வந்தான், ரொம்ப சந்தோஷமா இருந்தது.",
+          "offset_ms": 36000
+        },
+        {
+          "speaker": "agent",
+          "text": "Romba sandhosham amma. Naalaikku pesalaam.",
+          "offset_ms": 42000
+        }
+      ]
+    }
+  ],
+  "expected": {
+    "attempts": [
+      "completed"
+    ],
+    "slot_status": "completed",
+    "alerts": [],
+    "needs_review": false,
+    "report": {
+      "mood": "good",
+      "sleep": "good",
+      "appetite": "normal",
+      "medicines": [
+        {
+          "name": "Metformin 500mg",
+          "taken": "yes"
+        }
+      ],
+      "family_summary": "We spoke with Lakshmi amma today. They were in good spirits. They slept well. They are eating normally. Medicines taken: Metformin 500mg."
+    }
+  }
+}

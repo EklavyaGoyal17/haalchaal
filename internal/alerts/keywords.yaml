@@ -1,0 +1,124 @@
+# Keyword detector starter list (SPEC §9). Text is lowercased and whitespace
+# normalised, then phrases are matched as substrings; Latin-script phrases
+# must also sit on word boundaries. Native speakers and the doctor advisor
+# must review this list before any real call.
+#
+# Format: a category line ending in ":" followed by "- phrase" lines.
+
+fall:
+  - gir gaya
+  - gir gayi
+  - gir gai
+  - gir padi
+  - gir pada
+  - fisal gaya
+  - fisal gayi
+  - गिर गया
+  - गिर गई
+  - गिर गयी
+  - गिर पड़ी
+  - fell
+  - fallen
+  - i fell
+  - slipped
+  - விழுந்தேன்
+  - விழுந்துட்டேன்
+
+chest_pain:
+  - seene mein dard
+  - seene me dard
+  - chhati mein dard
+  - chhati me dard
+  - सीने में दर्द
+  - छाती में दर्द
+  - chest pain
+  - pain in my chest
+  - நெஞ்சு வலி
+
+breathing:
+  - saans nahi aa rahi
+  - saans nahin aa rahi
+  - saans phool rahi
+  - saans lene mein
+  - सांस नहीं
+  - साँस नहीं
+  - can't breathe
+  - cannot breathe
+  - can not breathe
+  - hard to breathe
+  - மூச்சு விட முடியல
+
+fainting:
+  - behosh
+  - chakkar aake gir
+  - chakkar aa kar gir
+  - बेहोश
+  - fainted
+  - blacked out
+  - passed out
+  - மயக்கம்
+
+stroke_signs:
+  - haath nahi uth raha
+  - haath nahin uth raha
+  - munh tedha
+  - muh tedha
+  - bol nahi pa raha
+  - bol nahi pa rahi
+  - can't move my arm
+  - cannot move my arm
+  - speech slurred
+  - slurred speech
+  - face drooping
+
+bleeding:
+  - khoon beh raha
+  - khoon nikal raha
+  - खून बह
+  - bleeding a lot
+  - won't stop bleeding
+  - ரத்தம் வருது
+
+confusion:
+  - kuch yaad nahi aa raha
+  - samajh nahi aa raha main kahan
+  - where am i
+  - i don't know where i am
+  - pata nahi main kahan hoon
+
+self_harm:
+  - jeena nahi chahta
+  - jeena nahi chahti
+  - jeena nahin chahta
+  - jeena nahin chahti
+  - mar jana chahta
+  - mar jana chahti
+  - जीना नहीं
+  - मर जाना
+  - don't want to live
+  - do not want to live
+  - end my life
+  - kill myself
+  - வாழ விருப்பம் இல்ல
+
+scam:
+  - cbi
+  - police
+  - arrest
+  - digital arrest
+  - customs
+  - parcel
+  - courier
+  - otp
+  - bank account
+  - account number
+  - paise bhejo
+  - paisa bhejo
+  - money transfer
+  - video call pe raho
+  - video call par raho
+  - aadhaar
+  - aadhar
+  - kyc
+  - पुलिस
+  - ओटीपी

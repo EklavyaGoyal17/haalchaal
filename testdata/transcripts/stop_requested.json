@@ -1,0 +1,89 @@
+{
+  "name": "stop_requested",
+  "description": "The parent asks to stop the calls: parent paused, family told, admin review.",
+  "parent": {
+    "preferred_name": "Kamla ji",
+    "language": "hi",
+    "first_call_done": true
+  },
+  "family": [
+    {
+      "name": "Rahul",
+      "relation": "son",
+      "language": "en"
+    },
+    {
+      "name": "Priya",
+      "relation": "daughter",
+      "language": "en"
+    }
+  ],
+  "medicines": [
+    {
+      "name": "Amlodipine 5mg",
+      "timing": "after breakfast"
+    }
+  ],
+  "attempts": [
+    {
+      "events": [
+        {
+          "type": "ringing",
+          "after_sec": 3
+        },
+        {
+          "type": "answered",
+          "after_sec": 9
+        },
+        {
+          "type": "completed",
+          "after_sec": 189,
+          "duration_sec": 180,
+          "cost_paise": 1100
+        }
+      ],
+      "transcript": [
+        {
+          "speaker": "agent",
+          "text": "Namaste Kamla ji, main HaalChaal hoon, Rahul ka banaya hua AI sahayak. Aap kaise hain?",
+          "offset_ms": 0
+        },
+        {
+          "speaker": "parent",
+          "text": "Beta, mujhe ab yeh calls nahi chahiye, band kar do, main theek hoon.",
+          "offset_ms": 6000
+        },
+        {
+          "speaker": "agent",
+          "text": "Bilkul, main ab call nahi karungi. Dhanyavaad Kamla ji.",
+          "offset_ms": 12000
+        },
+        {
+          "speaker": "parent",
+          "text": "Haan, dhanyavaad, Rahul ko pyaar dena.",
+          "offset_ms": 18000
+        }
+      ]
+    }
+  ],
+  "expected": {
+    "attempts": [
+      "completed"
+    ],
+    "parent_status": "paused",
+    "needs_review": true,
+    "alerts": [
+      {
+        "type": "urgent",
+        "category": "stop_requested",
+        "source": "model"
+      }
+    ],
+    "report": {
+      "call_preferences": {
+        "stop_requested": true,
+        "new_time_requested": null
+      }
+    }
+  }
+}

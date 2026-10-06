@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/EklavyaGoyal17/haalchaal/internal/alerts"
+	"github.com/EklavyaGoyal17/haalchaal/internal/alerts/rules"
 	"github.com/EklavyaGoyal17/haalchaal/internal/audit"
 	"github.com/EklavyaGoyal17/haalchaal/internal/db"
 	"github.com/EklavyaGoyal17/haalchaal/internal/voice"
@@ -35,11 +36,7 @@ func ToolFinding(tc voice.ToolCall) (alerts.Finding, error) {
 		}
 		return alerts.Finding{Type: typ, Category: cat, Source: alerts.SourceTool, Detail: tc.Args["quote"]}, nil
 	case voice.ToolReportScam:
-		pat := tc.Args["pattern"]
-		if !slices.Contains(alerts.ScamPatterns, pat) || pat == "other" {
-			pat = "scam_other"
-		}
-		return alerts.Finding{Type: alerts.TypeScam, Category: pat, Source: alerts.SourceTool, Detail: tc.Args["quote"]}, nil
+		return alerts.Finding{Type: alerts.TypeScam, Category: rules.ScamCategory(tc.Args["pattern"]), Source: alerts.SourceTool, Detail: tc.Args["quote"]}, nil
 	case voice.ToolReportStopRequest:
 		return alerts.Finding{Type: alerts.TypeUrgent, Category: alerts.CategoryStopRequested, Source: alerts.SourceTool}, nil
 	}

@@ -94,14 +94,17 @@ type TurnSpec struct {
 
 // Expected is what a scenario must produce. Empty fields are not checked.
 type Expected struct {
-	Attempts     []string          `json:"attempts,omitempty"`    // final status per attempt, in order
-	SlotStatus   string            `json:"slot_status,omitempty"` // final status of the scenario day's slot
-	Alerts       []ExpectedAlert   `json:"alerts"`                // exact set (type/category), order-independent
-	ParentStatus string            `json:"parent_status,omitempty"`
-	Report       *json.RawMessage  `json:"report,omitempty"`   // checked by golden tests (M4)
-	Messages     []ExpectedMessage `json:"messages,omitempty"` // checked by golden tests (M5)
-	NoMessages   bool              `json:"no_messages,omitempty"`
-	MustNotSend  []string          `json:"must_not_send,omitempty"` // substrings no outbound message may contain
+	Attempts     []string         `json:"attempts,omitempty"`    // final status per attempt, in order
+	SlotStatus   string           `json:"slot_status,omitempty"` // final status of the scenario day's slot
+	Alerts       []ExpectedAlert  `json:"alerts"`                // exact set (type/category), order-independent
+	ParentStatus string           `json:"parent_status,omitempty"`
+	Report       *json.RawMessage `json:"report,omitempty"` // subset of the stored report for the day's last processed call
+	NeedsReview  *bool            `json:"needs_review,omitempty"`
+	// TranscriptDeleted expects no transcript to remain for the day's calls.
+	TranscriptDeleted bool              `json:"transcript_deleted,omitempty"`
+	Messages          []ExpectedMessage `json:"messages,omitempty"` // checked by golden tests (M5)
+	NoMessages        bool              `json:"no_messages,omitempty"`
+	MustNotSend       []string          `json:"must_not_send,omitempty"` // substrings no outbound message may contain
 }
 
 // ExpectedAlert identifies an alert.

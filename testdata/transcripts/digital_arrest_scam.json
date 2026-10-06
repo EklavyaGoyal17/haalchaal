@@ -1,0 +1,98 @@
+{
+  "name": "digital_arrest_scam",
+  "description": "A 'digital arrest' scam: one scam alert to family and admins.",
+  "parent": {
+    "preferred_name": "Kamla ji",
+    "language": "hi",
+    "first_call_done": true
+  },
+  "family": [
+    {
+      "name": "Rahul",
+      "relation": "son",
+      "language": "en"
+    },
+    {
+      "name": "Priya",
+      "relation": "daughter",
+      "language": "en"
+    }
+  ],
+  "medicines": [
+    {
+      "name": "Amlodipine 5mg",
+      "timing": "after breakfast"
+    }
+  ],
+  "attempts": [
+    {
+      "events": [
+        {
+          "type": "ringing",
+          "after_sec": 3
+        },
+        {
+          "type": "answered",
+          "after_sec": 9
+        },
+        {
+          "type": "completed",
+          "after_sec": 189,
+          "duration_sec": 180,
+          "cost_paise": 1100
+        }
+      ],
+      "transcript": [
+        {
+          "speaker": "agent",
+          "text": "Namaste Kamla ji, main HaalChaal hoon, Rahul ka banaya hua AI sahayak. Aap kaise hain?",
+          "offset_ms": 0
+        },
+        {
+          "speaker": "parent",
+          "text": "Theek hoon. Par ek CBI officer ka phone aaya tha, bola digital arrest hoga, video call pe raho aur paise bhejo.",
+          "offset_ms": 6000
+        },
+        {
+          "speaker": "agent",
+          "text": "Asli police kabhi phone ya video call par arrest nahi karti aur paise nahi maangti. Kripya paise mat bhejiye aur OTP kisi ko mat dijiye. Main Rahul ko bata rahi hoon.",
+          "offset_ms": 12000
+        },
+        {
+          "speaker": "parent",
+          "text": "Accha, maine abhi tak kuch nahi bheja.",
+          "offset_ms": 18000
+        }
+      ]
+    }
+  ],
+  "expected": {
+    "attempts": [
+      "completed"
+    ],
+    "needs_review": true,
+    "alerts": [
+      {
+        "type": "scam",
+        "category": "agency_threat",
+        "source": "model"
+      }
+    ],
+    "report": {
+      "scam_signals": [
+        {
+          "pattern": "agency_threat",
+          "quote": "Theek hoon. Par ek CBI officer ka phone aaya tha, bola digital arrest hoga, video call pe raho aur paise bhejo."
+        },
+        {
+          "pattern": "money_request",
+          "quote": "Theek hoon. Par ek CBI officer ka phone aaya tha, bola digital arrest hoga, video call pe raho aur paise bhejo."
+        },
+        {
+          "pattern": "video_call_pressure",
+          "quote": "Theek hoon. Par ek CBI officer ka phone aaya tha, bola digital arrest hoga, video call pe raho aur paise bhejo."
+        }
+      ]
+    }
+  }
+}

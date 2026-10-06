@@ -1,0 +1,92 @@
+{
+  "name": "police_son_not_scam",
+  "description": "The word 'police' alone (the son is a policeman) goes to admin review, not the family.",
+  "parent": {
+    "preferred_name": "Kamla ji",
+    "language": "hi",
+    "first_call_done": true
+  },
+  "family": [
+    {
+      "name": "Rahul",
+      "relation": "son",
+      "language": "en"
+    },
+    {
+      "name": "Priya",
+      "relation": "daughter",
+      "language": "en"
+    }
+  ],
+  "medicines": [
+    {
+      "name": "Amlodipine 5mg",
+      "timing": "after breakfast"
+    }
+  ],
+  "attempts": [
+    {
+      "events": [
+        {
+          "type": "ringing",
+          "after_sec": 3
+        },
+        {
+          "type": "answered",
+          "after_sec": 9
+        },
+        {
+          "type": "completed",
+          "after_sec": 189,
+          "duration_sec": 180,
+          "cost_paise": 1100
+        }
+      ],
+      "transcript": [
+        {
+          "speaker": "agent",
+          "text": "Namaste Kamla ji, main HaalChaal hoon, Rahul ka banaya hua AI sahayak. Aap kaise hain?",
+          "offset_ms": 0
+        },
+        {
+          "speaker": "parent",
+          "text": "Main theek hoon. Mera beta police mein hai, kal milne aaya tha, bahut accha laga.",
+          "offset_ms": 6000
+        },
+        {
+          "speaker": "agent",
+          "text": "Aaj subah Amlodipine li aapne?",
+          "offset_ms": 12000
+        },
+        {
+          "speaker": "parent",
+          "text": "Haan, le li thi.",
+          "offset_ms": 18000
+        },
+        {
+          "speaker": "agent",
+          "text": "Bahut accha. Kal phir baat karenge.",
+          "offset_ms": 24000
+        }
+      ]
+    }
+  ],
+  "expected": {
+    "attempts": [
+      "completed"
+    ],
+    "slot_status": "completed",
+    "needs_review": true,
+    "alerts": [
+      {
+        "type": "scam",
+        "category": "scam_keyword",
+        "source": "keyword"
+      }
+    ],
+    "report": {
+      "scam_signals": [],
+      "red_flags": []
+    }
+  }
+}

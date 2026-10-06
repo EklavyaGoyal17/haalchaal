@@ -1,0 +1,167 @@
+{
+  "name": "missed_meds_two_days",
+  "description": "The same medicine is not taken on two calls in a row: an urgent alert on the second day only.",
+  "parent": {
+    "preferred_name": "Kamla ji",
+    "language": "hi",
+    "first_call_done": true
+  },
+  "family": [
+    {
+      "name": "Rahul",
+      "relation": "son",
+      "language": "en"
+    },
+    {
+      "name": "Priya",
+      "relation": "daughter",
+      "language": "en"
+    }
+  ],
+  "medicines": [
+    {
+      "name": "Amlodipine 5mg",
+      "timing": "after breakfast"
+    }
+  ],
+  "history": [
+    {
+      "attempts": [
+        {
+          "events": [
+            {
+              "type": "ringing",
+              "after_sec": 3
+            },
+            {
+              "type": "answered",
+              "after_sec": 9
+            },
+            {
+              "type": "completed",
+              "after_sec": 189,
+              "duration_sec": 180,
+              "cost_paise": 1100
+            }
+          ],
+          "transcript": [
+            {
+              "speaker": "agent",
+              "text": "Namaste Kamla ji, main HaalChaal hoon, Rahul ka banaya hua AI sahayak. Aap kaise hain?",
+              "offset_ms": 0
+            },
+            {
+              "speaker": "parent",
+              "text": "Theek hoon beta, bas thoda thakaan hai aaj.",
+              "offset_ms": 6000
+            },
+            {
+              "speaker": "agent",
+              "text": "Aaj subah Amlodipine li aapne?",
+              "offset_ms": 12000
+            },
+            {
+              "speaker": "parent",
+              "text": "Nahi, aaj bhi bhool gayi, nahi li.",
+              "offset_ms": 18000
+            },
+            {
+              "speaker": "agent",
+              "text": "Koi baat nahi, yaad se le lijiye. Khana khaya?",
+              "offset_ms": 24000
+            },
+            {
+              "speaker": "parent",
+              "text": "Haan, khana kha liya, roti sabzi.",
+              "offset_ms": 30000
+            },
+            {
+              "speaker": "agent",
+              "text": "Accha. Kal phir baat karenge.",
+              "offset_ms": 36000
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "attempts": [
+    {
+      "events": [
+        {
+          "type": "ringing",
+          "after_sec": 3
+        },
+        {
+          "type": "answered",
+          "after_sec": 9
+        },
+        {
+          "type": "completed",
+          "after_sec": 189,
+          "duration_sec": 180,
+          "cost_paise": 1100
+        }
+      ],
+      "transcript": [
+        {
+          "speaker": "agent",
+          "text": "Namaste Kamla ji, main HaalChaal hoon, Rahul ka banaya hua AI sahayak. Aap kaise hain?",
+          "offset_ms": 0
+        },
+        {
+          "speaker": "parent",
+          "text": "Theek hoon beta, bas thoda thakaan hai aaj.",
+          "offset_ms": 6000
+        },
+        {
+          "speaker": "agent",
+          "text": "Aaj subah Amlodipine li aapne?",
+          "offset_ms": 12000
+        },
+        {
+          "speaker": "parent",
+          "text": "Nahi, aaj bhi bhool gayi, nahi li.",
+          "offset_ms": 18000
+        },
+        {
+          "speaker": "agent",
+          "text": "Koi baat nahi, yaad se le lijiye. Khana khaya?",
+          "offset_ms": 24000
+        },
+        {
+          "speaker": "parent",
+          "text": "Haan, khana kha liya, roti sabzi.",
+          "offset_ms": 30000
+        },
+        {
+          "speaker": "agent",
+          "text": "Accha. Kal phir baat karenge.",
+          "offset_ms": 36000
+        }
+      ]
+    }
+  ],
+  "expected": {
+    "attempts": [
+      "completed"
+    ],
+    "slot_status": "completed",
+    "alerts": [
+      {
+        "type": "urgent",
+        "category": "missed_medicine",
+        "source": "rule"
+      }
+    ],
+    "report": {
+      "medicines": [
+        {
+          "name": "Amlodipine 5mg",
+          "taken": "no"
+        }
+      ],
+      "red_flags": []
+    }
+  }
+}

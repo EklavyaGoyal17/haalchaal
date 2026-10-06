@@ -1,0 +1,29 @@
+{{- /* Family summary built only from structured report fields. It never
+       sees private_notes. One line: it becomes a WhatsApp template param. */ -}}
+{{- if .SomeoneElse -}}
+{{- if eq .Language "hi" -}}
+आज की कॉल किसी और ने उठाई, इसलिए {{.Name}} से बात नहीं हो पाई।
+{{- else -}}
+Someone else answered today's call, so we could not speak with {{.Name}}.
+{{- end -}}
+{{- else if eq .Language "hi" -}}
+{{.Name}} से आज बात हुई।
+{{- if eq .Mood "good"}} वे अच्छे मूड में थे।{{else if eq .Mood "ok"}} वे ठीक लग रहे थे।{{else if eq .Mood "low"}} वे थोड़े उदास लग रहे थे।{{else if eq .Mood "distressed"}} वे परेशान लग रहे थे।{{end}}
+{{- if eq .Sleep "good"}} नींद अच्छी आई।{{else if eq .Sleep "poor"}} नींद ठीक से नहीं आई।{{end}}
+{{- if eq .Appetite "normal"}} खाना ठीक से खाया।{{else if eq .Appetite "poor"}} भूख कम थी।{{end}}
+{{- if .MedsTaken}} दवाइयाँ ली: {{join .MedsTaken ", "}}।{{end}}
+{{- if .MedsMissed}} दवाइयाँ नहीं ली: {{join .MedsMissed ", "}}।{{end}}
+{{- if .MedsUnsure}} पक्का नहीं: {{join .MedsUnsure ", "}}।{{end}}
+{{- if .Pains}} दर्द का ज़िक्र: {{join .Pains ", "}}।{{end}}
+{{- if .Messages}} आपके लिए संदेश: {{join .Messages "; "}}।{{end}}
+{{- else -}}
+We spoke with {{.Name}} today.
+{{- if eq .Mood "good"}} They were in good spirits.{{else if eq .Mood "ok"}} They seemed okay.{{else if eq .Mood "low"}} They seemed a little low.{{else if eq .Mood "distressed"}} They sounded distressed.{{end}}
+{{- if eq .Sleep "good"}} They slept well.{{else if eq .Sleep "poor"}} They did not sleep well.{{end}}
+{{- if eq .Appetite "normal"}} They are eating normally.{{else if eq .Appetite "poor"}} Their appetite was poor.{{end}}
+{{- if .MedsTaken}} Medicines taken: {{join .MedsTaken ", "}}.{{end}}
+{{- if .MedsMissed}} Not taken: {{join .MedsMissed ", "}}.{{end}}
+{{- if .MedsUnsure}} Not sure about: {{join .MedsUnsure ", "}}.{{end}}
+{{- if .Pains}} Mentioned pain: {{join .Pains ", "}}.{{end}}
+{{- if .Messages}} They asked us to tell you: {{join .Messages "; "}}.{{end}}
+{{- end -}}

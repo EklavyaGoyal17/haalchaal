@@ -16,6 +16,7 @@ import (
 	"github.com/EklavyaGoyal17/haalchaal/internal/clock"
 	"github.com/EklavyaGoyal17/haalchaal/internal/crypto"
 	"github.com/EklavyaGoyal17/haalchaal/internal/db"
+	"github.com/EklavyaGoyal17/haalchaal/internal/extract"
 	"github.com/EklavyaGoyal17/haalchaal/internal/jobs"
 	"github.com/EklavyaGoyal17/haalchaal/internal/safety"
 	"github.com/EklavyaGoyal17/haalchaal/internal/scheduler"
@@ -44,6 +45,8 @@ type Service struct {
 	Gate                safety.Gate
 	RetryOffsets        []time.Duration
 	TranscriptRetention time.Duration
+	Extractor           extract.Extractor
+	FollowUpTTL         time.Duration
 }
 
 // ErrUnknownCall means an event or tool call names no attempt we know.

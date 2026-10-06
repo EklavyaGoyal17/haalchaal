@@ -16,6 +16,8 @@ import (
 	"github.com/EklavyaGoyal17/haalchaal/internal/clock"
 	"github.com/EklavyaGoyal17/haalchaal/internal/config"
 	"github.com/EklavyaGoyal17/haalchaal/internal/crypto"
+	"github.com/EklavyaGoyal17/haalchaal/internal/extract"
+	fakeextract "github.com/EklavyaGoyal17/haalchaal/internal/extract/fake"
 	"github.com/EklavyaGoyal17/haalchaal/internal/jobs"
 	"github.com/EklavyaGoyal17/haalchaal/internal/safety"
 	"github.com/EklavyaGoyal17/haalchaal/internal/scheduler"
@@ -79,9 +81,24 @@ func New(cfg config.Config, pool *pgxpool.Pool, log *slog.Logger, opt Options) (
 		Pool: pool, Clock: a.Clock, Log: log, Keyring: a.Keyring, Voice: a.Voice, Gate: gate,
 		RetryOffsets:        cfg.RetryOffsets,
 		TranscriptRetention: time.Duration(cfg.RetentionTranscriptDays) * 24 * time.Hour,
+		FollowUpTTL:         cfg.FollowUpTTL,
 	}
+	ex, err := newExtractor(cfg)
+	if err != nil {
+		return nil, err
+	}
+	a.Calls.Extractor = ex
 	a.Scheduler = &scheduler.Scheduler{Pool: pool, Clock: a.Clock, Log: log, Provider: a.Voice.Name()}
 	return a, nil
+}
+
+func newExtractor(cfg config.Config) (extract.Extractor, error) {
+	switch cfg.LLMProvider {
+	case "fake":
+		return fakeextract.Extractor{}, nil
+	default:
+		return nil, fmt.Errorf("LLM_PROVIDER %q is not available yet", cfg.LLMProvider)
+	}
 }
 
 func newVoice(cfg config.Config, log *slog.Logger) (voice.Provider, error) {
@@ -103,6 +120,7 @@ func newVoice(cfg config.Config, log *slog.Logger) (voice.Provider, error) {
 // RegisterHandlers attaches every job handler this build has to w.
 func (a *App) RegisterHandlers(w *jobs.Worker) {
 	w.Handle(jobs.KindPlaceCall, a.Calls.PlaceCall)
+	w.Handle(jobs.KindProcessCall, a.Calls.ProcessCall)
 }
 
 // NewWorker returns a job worker with every handler registered.
