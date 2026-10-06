@@ -113,12 +113,48 @@ func TestErrorsDoNotEchoFullPhone(t *testing.T) {
 	}
 }
 
+// testKey is 32 bytes of 'A', base64 encoded.
+const testKey = "QUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUE="
+
+func TestEncryptionKeys(t *testing.T) {
+	tests := []struct {
+		name        string
+		env         map[string]string
+		wantKeyring bool
+		wantErr     string
+	}{
+		{"unset in dev", nil, false, ""},
+		{"valid", map[string]string{"ENCRYPTION_KEYS": "1:" + testKey, "ENCRYPTION_ACTIVE_KID": "1"}, true, ""},
+		{"active missing", map[string]string{"ENCRYPTION_KEYS": "1:" + testKey}, false, "ENCRYPTION_ACTIVE_KID"},
+		{"short key", map[string]string{"ENCRYPTION_KEYS": "1:c2VjcmV0", "ENCRYPTION_ACTIVE_KID": "1"}, false, "32 bytes"},
+		{"kid out of range", map[string]string{"ENCRYPTION_KEYS": "300:" + testKey, "ENCRYPTION_ACTIVE_KID": "300"}, false, "1 to 255"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c, _, err := Load(env(tt.env))
+			if tt.wantErr == "" && err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if tt.wantErr != "" && (err == nil || !strings.Contains(err.Error(), tt.wantErr)) {
+				t.Fatalf("err = %v, want it to mention %q", err, tt.wantErr)
+			}
+			if (c.Keyring != nil) != tt.wantKeyring {
+				t.Fatalf("Keyring set = %v, want %v", c.Keyring != nil, tt.wantKeyring)
+			}
+			if err != nil && strings.Contains(err.Error(), testKey) {
+				t.Fatal("error leaks key material")
+			}
+		})
+	}
+}
+
 func TestLogValueHidesSecrets(t *testing.T) {
 	c, _, err := Load(env(map[string]string{
-		"DATABASE_URL":    "postgres://u:supersecret@localhost/db",
-		"ENCRYPTION_KEYS": "k1:c2VjcmV0",
-		"DEV_ALLOWLIST":   "+919876541234",
-		"LLM_API_KEY":     "sk-secret",
+		"DATABASE_URL":          "postgres://u:supersecret@localhost/db",
+		"ENCRYPTION_KEYS":       "1:" + testKey,
+		"ENCRYPTION_ACTIVE_KID": "1",
+		"DEV_ALLOWLIST":         "+919876541234",
+		"LLM_API_KEY":           "sk-secret",
 	}))
 	if err != nil {
 		t.Fatal(err)
@@ -126,7 +162,10 @@ func TestLogValueHidesSecrets(t *testing.T) {
 	var buf bytes.Buffer
 	slog.New(slog.NewJSONHandler(&buf, nil)).Info("config", "config", c)
 	out := buf.String()
-	for _, secret := range []string{"supersecret", "c2VjcmV0", "sk-secret", "9876541234"} {
+	if !strings.Contains(out, `"encryption_keys_set":true`) {
+		t.Errorf("expected encryption_keys_set true: %s", out)
+	}
+	for _, secret := range []string{"supersecret", testKey, "sk-secret", "9876541234"} {
 		if strings.Contains(out, secret) {
 			t.Errorf("log output contains %q: %s", secret, out)
 		}

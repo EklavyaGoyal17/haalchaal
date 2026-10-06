@@ -10,14 +10,18 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"strconv"
 	"syscall"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/EklavyaGoyal17/haalchaal/internal/config"
+	"github.com/EklavyaGoyal17/haalchaal/internal/crypto"
 	"github.com/EklavyaGoyal17/haalchaal/internal/httpapi"
 	"github.com/EklavyaGoyal17/haalchaal/internal/logging"
+	"github.com/EklavyaGoyal17/haalchaal/internal/migrate"
 )
 
 const usage = `usage: haalchaal <command>
@@ -25,7 +29,8 @@ const usage = `usage: haalchaal <command>
 commands:
   serve     run the HTTP server (webhooks and admin pages)
   worker    run the scheduler and job workers (Milestone 2)
-  migrate   apply database migrations (Milestone 1)
+  migrate   up | down | status: manage database migrations
+  genkey    print a new encryption key entry for ENCRYPTION_KEYS
   simcall   replay a golden transcript through the pipeline (Milestone 3)
 `
 
@@ -45,7 +50,11 @@ func main() {
 	switch cmd := os.Args[1]; cmd {
 	case "serve":
 		err = serve(ctx, log)
-	case "worker", "migrate", "simcall":
+	case "migrate":
+		err = runMigrate(ctx, log, os.Args[2:])
+	case "genkey":
+		err = genkey(os.Args[2:])
+	case "worker", "simcall":
 		err = fmt.Errorf("%s is not implemented yet", cmd)
 	case "-h", "--help", "help":
 		fmt.Print(usage)
@@ -72,22 +81,93 @@ func loadConfig(log *slog.Logger) (config.Config, error) {
 	return cfg, nil
 }
 
-func serve(ctx context.Context, log *slog.Logger) error {
+func openPool(ctx context.Context, log *slog.Logger) (config.Config, *pgxpool.Pool, error) {
 	cfg, err := loadConfig(log)
 	if err != nil {
-		return err
+		return cfg, nil, err
 	}
 	if err := cfg.RequireDatabase(); err != nil {
-		return err
+		return cfg, nil, err
 	}
-
 	pool, err := pgxpool.New(ctx, cfg.DatabaseURL)
 	if err != nil {
-		return fmt.Errorf("open database pool: %w", err)
+		return cfg, nil, fmt.Errorf("open database pool: %w", err)
+	}
+	return cfg, pool, nil
+}
+
+func runMigrate(ctx context.Context, log *slog.Logger, args []string) error {
+	if len(args) != 1 {
+		return errors.New("usage: haalchaal migrate up|down|status")
+	}
+	_, pool, err := openPool(ctx, log)
+	if err != nil {
+		return err
 	}
 	defer pool.Close()
+	m, err := migrate.New(pool)
+	if err != nil {
+		return err
+	}
+	defer m.Close()
 
-	api := &httpapi.Server{DB: pool, Log: log}
+	switch args[0] {
+	case "up":
+		v, err := m.Up(ctx)
+		if err != nil {
+			return err
+		}
+		log.Info("migrations applied", "version", v)
+	case "down":
+		v, err := m.Down(ctx)
+		if err != nil {
+			return err
+		}
+		log.Info("rolled back one migration", "version", v)
+	case "status":
+		statuses, err := m.Status(ctx)
+		if err != nil {
+			return err
+		}
+		for _, s := range statuses {
+			fmt.Printf("%-8s %d %s\n", s.State, s.Source.Version, filepath.Base(s.Source.Path))
+		}
+	default:
+		return fmt.Errorf("unknown migrate command %q (want up, down or status)", args[0])
+	}
+	return nil
+}
+
+// genkey prints "<kid>:<base64 key>" to append to ENCRYPTION_KEYS.
+func genkey(args []string) error {
+	kid := "1"
+	if len(args) > 0 {
+		kid = args[0]
+	}
+	if n, err := strconv.Atoi(kid); err != nil || n < 1 || n > 255 {
+		return errors.New("usage: haalchaal genkey [kid 1-255]")
+	}
+	k, err := crypto.GenerateKey()
+	if err != nil {
+		return err
+	}
+	fmt.Printf("%s:%s\n", kid, k)
+	return nil
+}
+
+func serve(ctx context.Context, log *slog.Logger) error {
+	cfg, pool, err := openPool(ctx, log)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+	m, err := migrate.New(pool)
+	if err != nil {
+		return err
+	}
+	defer m.Close()
+
+	api := &httpapi.Server{DB: pool, Migrations: m, Log: log}
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,
 		Handler:           api.Handler(),

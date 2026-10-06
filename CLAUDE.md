@@ -96,3 +96,5 @@ Created in Milestone 0; keep them working.
 - 2026-10: Go and Postgres backend; voice through a managed platform first, behind `VoiceProvider`.
 - 2026-10: WhatsApp is the family interface; no family app in the MVP.
 - 2026-10: Hindi and English first, Tamil next.
+- 2026-10: Encryption key ids are 1 to 255; each `_enc` value is bound to its column name as associated data.
+- 2026-10: goose runs as a library (`haalchaal migrate`); sqlc runs in Docker (`make sqlc`) because it needs cgo on Windows. Dev Postgres is on port 55432.

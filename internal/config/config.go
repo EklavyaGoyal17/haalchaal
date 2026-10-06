@@ -14,6 +14,7 @@ import (
 	"time"
 	_ "time/tzdata" // timezone data on hosts without it (Windows, slim images)
 
+	"github.com/EklavyaGoyal17/haalchaal/internal/crypto"
 	"github.com/EklavyaGoyal17/haalchaal/internal/domain"
 	"github.com/EklavyaGoyal17/haalchaal/internal/logging"
 )
@@ -33,9 +34,8 @@ type Config struct {
 	HTTPAddr    string
 	DatabaseURL string
 
-	EncryptionKeys      string // parsed by internal/crypto in M1
-	EncryptionActiveKID string
-	AdminUsers          string // email:bcrypt_hash,...
+	Keyring          *crypto.Keyring // nil in dev when ENCRYPTION_KEYS is unset
+	AdminUsers       string          // email:bcrypt_hash,...
 	AdminAlertPhones    []string
 
 	CallsEnabled         bool
@@ -80,10 +80,9 @@ func Load(getenv func(string) string) (Config, []string, error) {
 		HTTPAddr:    l.str("HTTP_ADDR", ":8080"),
 		DatabaseURL: l.str("DATABASE_URL", ""),
 
-		EncryptionKeys:      l.str("ENCRYPTION_KEYS", ""),
-		EncryptionActiveKID: l.str("ENCRYPTION_ACTIVE_KID", ""),
-		AdminUsers:          l.str("ADMIN_USERS", ""),
-		AdminAlertPhones:    l.phones("ADMIN_ALERT_PHONES"),
+		Keyring:          l.keyring("ENCRYPTION_KEYS", "ENCRYPTION_ACTIVE_KID"),
+		AdminUsers:       l.str("ADMIN_USERS", ""),
+		AdminAlertPhones: l.phones("ADMIN_ALERT_PHONES"),
 
 		CallsEnabled:         l.failClosedBool("CALLS_ENABLED"),
 		DevAllowlist:         l.phones("DEV_ALLOWLIST"),
@@ -163,7 +162,7 @@ func (c Config) LogValue() slog.Value {
 		slog.String("app_env", string(c.AppEnv)),
 		slog.String("http_addr", c.HTTPAddr),
 		slog.Bool("database_url_set", c.DatabaseURL != ""),
-		slog.Bool("encryption_keys_set", c.EncryptionKeys != ""),
+		slog.Bool("encryption_keys_set", c.Keyring != nil),
 		slog.Bool("calls_enabled", c.CallsEnabled),
 		slog.Bool("telecom_compliance_ack", c.TelecomComplianceAck),
 		slog.Any("dev_allowlist", masked(c.DevAllowlist)),
@@ -205,6 +204,22 @@ func (l *loader) failClosedBool(key string) bool {
 		return false
 	}
 	return b
+}
+
+// keyring parses the encryption keys when they are set. Missing keys are only
+// an error outside dev, which Load checks separately.
+func (l *loader) keyring(keysKey, activeKey string) *crypto.Keyring {
+	keys := strings.TrimSpace(l.getenv(keysKey))
+	active := strings.TrimSpace(l.getenv(activeKey))
+	if keys == "" && active == "" {
+		return nil
+	}
+	kr, err := crypto.ParseKeyring(keys, active)
+	if err != nil {
+		l.errs = append(l.errs, err)
+		return nil
+	}
+	return kr
 }
 
 func (l *loader) phones(key string) []string {

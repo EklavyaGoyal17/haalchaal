@@ -16,10 +16,16 @@ type Pinger interface {
 	Ping(ctx context.Context) error
 }
 
+// MigrationChecker reports whether any migration is not yet applied.
+type MigrationChecker interface {
+	HasPending(ctx context.Context) (bool, error)
+}
+
 // Server wires routes to their dependencies.
 type Server struct {
-	DB  Pinger
-	Log *slog.Logger
+	DB         Pinger
+	Migrations MigrationChecker
+	Log        *slog.Logger
 }
 
 // Handler returns the root handler with middleware applied.
@@ -37,16 +43,26 @@ func (s *Server) healthz(w http.ResponseWriter, r *http.Request) {
 func (s *Server) readyz(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 	defer cancel()
-	if s.DB == nil {
+	rid := logging.RequestID(ctx)
+	if s.DB == nil || s.Migrations == nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"status": "unavailable", "database": "not configured"})
 		return
 	}
 	if err := s.DB.Ping(ctx); err != nil {
-		s.Log.WarnContext(ctx, "readyz: database ping failed", "request_id", logging.RequestID(ctx), "error", err)
+		s.Log.WarnContext(ctx, "readyz: database ping failed", "request_id", rid, "error", err)
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"status": "unavailable", "database": "unreachable"})
 		return
 	}
-	// The "migrations current" check arrives with goose in M1.
+	pending, err := s.Migrations.HasPending(ctx)
+	if err != nil {
+		s.Log.WarnContext(ctx, "readyz: migration check failed", "request_id", rid, "error", err)
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"status": "unavailable", "migrations": "unknown"})
+		return
+	}
+	if pending {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"status": "unavailable", "migrations": "pending"})
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ready"})
 }
 

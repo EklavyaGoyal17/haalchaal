@@ -5,3 +5,4 @@ bin/
 *.exe
 *.out
 coverage.*
+.claude/settings.local.json

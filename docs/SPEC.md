@@ -65,7 +65,7 @@ retention (daily job)
 
 ## 4. Data model
 
-Migrations implement these tables. Columns ending in `_enc` are `BYTEA` holding `key_id (1 byte) || nonce (12 bytes) || ciphertext`, written only through `internal/crypto`.
+Migrations implement these tables. Columns ending in `_enc` are `BYTEA` holding `key_id (1 byte) || nonce (12 bytes) || ciphertext`, written only through `internal/crypto`. Encryption binds each value to its column name (for example `parents.safe_word_enc`) as GCM associated data, so a value copied into another column cannot be decrypted. The migration adds safety checks beyond the listing below: E.164 format on every `*_e164` column, `window_start < window_end` on parents, and family `priority` between 1 and 5.
 
 ```sql
 CREATE TABLE accounts (
@@ -626,7 +626,7 @@ Dashboard metrics, all over the last 30 days: pickup rate per parent (completed 
 | `APP_ENV` | `dev` | `dev`, `staging` or `prod` |
 | `HTTP_ADDR` | `:8080` | |
 | `DATABASE_URL` | none | Required |
-| `ENCRYPTION_KEYS` | none | `kid:base64key,...` with 32-byte keys |
+| `ENCRYPTION_KEYS` | none | `kid:base64key,...` with 32-byte keys; `kid` is 1 to 255 because it is stored in one byte. `make genkey` prints one |
 | `ENCRYPTION_ACTIVE_KID` | none | Key id used for new writes |
 | `ADMIN_USERS` | none | `email:bcrypt_hash,...` |
 | `ADMIN_ALERT_PHONES` | none | E.164 numbers that receive admin alerts |
