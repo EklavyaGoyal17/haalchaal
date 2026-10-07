@@ -99,7 +99,7 @@ A warm, patient AI voice calls every day at the parent's chosen time, in Hindi, 
 | Privacy and security | Health data encrypted in the database; phone numbers masked in logs; no transcripts in logs; an audit log of admin actions; key rotation; security reviews done at checkpoints |
 | Operations | Daily data-retention clean-up; Docker image; automated checks on GitHub; runbooks for deployment, backups, key rotation, incidents and data breaches |
 | Vendor connections | **Vapi** voice adapter, **Claude** report adapter and **WhatsApp Cloud** adapter: all written and tested, not yet switched on |
-| Testing | 25 recorded test conversations (falls, chest pain, scams, stop requests, a stranger answering, prompt-injection attempts and more) replayed through the whole system; a load test with 1,000 parents |
+| Testing | 24 recorded test conversations (falls, chest pain, scams, stop requests, a stranger answering, prompt-injection attempts and more) replayed through the whole system; a load test with 1,000 parents |
 | Local demo | Runs on the founder's PC; `make seed-demo` adds four demo families |
 
 ### What works right now
