@@ -116,6 +116,29 @@ type Provider interface {
 	ParseToolCall(r *http.Request) (ToolCall, error) // verifies the signature first
 }
 
+// Delivery is one verified request from a platform that sends status events
+// and tool calls in the same message format, possibly to either URL (Vapi).
+type Delivery struct {
+	Events    []Event
+	ToolCalls []ToolCall
+}
+
+// ToolResult is the outcome of one tool call, for the platform's reply.
+type ToolResult struct {
+	Call ToolCall
+	Err  error // nil when the report was recorded
+}
+
+// DeliveryParser is implemented by providers whose webhooks may carry tool
+// calls as well as status events, and that expect tool results in their own
+// reply format. Handlers prefer it over ParseWebhook and ParseToolCall.
+type DeliveryParser interface {
+	ParseDelivery(r *http.Request) (Delivery, error) // verifies the signature first
+	// ToolReply is the response body for the tool calls of one delivery. It
+	// never carries data from the call.
+	ToolReply(results []ToolResult) any
+}
+
 // ErrBadSignature means a webhook failed verification. Handlers answer 401
 // and never process the body.
 var ErrBadSignature = errors.New("voice: bad webhook signature")

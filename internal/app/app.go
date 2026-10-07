@@ -32,6 +32,7 @@ import (
 	"github.com/EklavyaGoyal17/haalchaal/internal/scheduler"
 	"github.com/EklavyaGoyal17/haalchaal/internal/voice"
 	"github.com/EklavyaGoyal17/haalchaal/internal/voice/fake"
+	"github.com/EklavyaGoyal17/haalchaal/internal/voice/vapi"
 )
 
 // App holds the wired services.
@@ -181,6 +182,12 @@ func newVoice(cfg config.Config, log *slog.Logger) (voice.Provider, error) {
 			log.Warn("VOICE_WEBHOOK_SECRET not set: fake provider uses a random secret for this process")
 		}
 		return fake.New(secret), nil
+	case "vapi":
+		return vapi.New(vapi.Options{
+			APIKey: cfg.VoiceAPIKey, WebhookSecret: cfg.VoiceWebhookSecret,
+			AssistantID: cfg.VoiceAgentID, PhoneNumberID: cfg.VoicePhoneNumberID,
+			CostPaisePerUSD: cfg.VoiceCostPaisePerUSD,
+		})
 	default:
 		return nil, fmt.Errorf("VOICE_PROVIDER %q is not available yet", cfg.VoiceProvider)
 	}

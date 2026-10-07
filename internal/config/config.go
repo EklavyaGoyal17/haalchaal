@@ -48,6 +48,12 @@ type Config struct {
 	VoiceWebhookSecret string
 	VoiceAgentID       string
 	VoiceFromNumber    string
+	// VoicePhoneNumberID is the platform's id for the number calls are placed
+	// from (Vapi: phoneNumberId).
+	VoicePhoneNumberID string
+	// VoiceCostPaisePerUSD converts platform costs reported in USD; 0 leaves
+	// call costs unrecorded.
+	VoiceCostPaisePerUSD int64
 
 	WhatsAppProvider      string
 	WhatsAppToken         string
@@ -98,6 +104,9 @@ func Load(getenv func(string) string) (Config, []string, error) {
 		VoiceWebhookSecret: l.str("VOICE_WEBHOOK_SECRET", ""),
 		VoiceAgentID:       l.str("VOICE_AGENT_ID", ""),
 		VoiceFromNumber:    l.str("VOICE_FROM_NUMBER", ""),
+		VoicePhoneNumberID: l.str("VOICE_PHONE_NUMBER_ID", ""),
+
+		VoiceCostPaisePerUSD: int64(l.nonNegativeInt("VOICE_COST_PAISE_PER_USD", 0)),
 
 		WhatsAppProvider:      l.str("WHATSAPP_PROVIDER", "fake"),
 		WhatsAppToken:         l.str("WHATSAPP_TOKEN", ""),
@@ -284,6 +293,19 @@ func (l *loader) positiveInt(key string, def int) int {
 	n, err := strconv.Atoi(v)
 	if err != nil || n <= 0 {
 		l.errorf("%s must be a positive whole number", key)
+		return 0
+	}
+	return n
+}
+
+func (l *loader) nonNegativeInt(key string, def int) int {
+	v := strings.TrimSpace(l.getenv(key))
+	if v == "" {
+		return def
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil || n < 0 {
+		l.errorf("%s must be a whole number, 0 or more", key)
 		return 0
 	}
 	return n

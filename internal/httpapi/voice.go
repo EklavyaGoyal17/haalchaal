@@ -16,37 +16,93 @@ const maxWebhookBody = 1 << 20
 // voiceWebhook handles POST /v1/webhooks/voice/{provider}: verify, dedupe,
 // persist and enqueue, then answer quickly. Bodies are never logged.
 func (s *Server) voiceWebhook(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	rid := logging.RequestID(ctx)
 	if s.Voice == nil || s.Calls == nil || r.PathValue("provider") != s.Voice.Name() {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "unknown provider"})
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, maxWebhookBody)
+	if dp, ok := s.Voice.(voice.DeliveryParser); ok {
+		s.voiceDelivery(w, r, dp)
+		return
+	}
 	events, err := s.Voice.ParseWebhook(r)
 	if err != nil {
 		s.rejectWebhook(w, r, err)
 		return
 	}
-	applied, dupes := 0, 0
+	dupes, status, ok := s.applyEvents(r, events)
+	if !ok {
+		writeJSON(w, status, map[string]string{"error": http.StatusText(status)})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "received": len(events), "duplicates": dupes})
+}
+
+// applyEvents applies verified events in order. On failure it returns the
+// status to answer with; the platform then retries the whole request, and
+// events already applied are deduplicated.
+func (s *Server) applyEvents(r *http.Request, events []voice.Event) (dupes, status int, ok bool) {
+	ctx := r.Context()
+	rid := logging.RequestID(ctx)
 	for _, ev := range events {
 		res, err := s.Calls.ApplyEvent(ctx, s.Voice.Name(), ev)
 		switch {
 		case errors.Is(err, calls.ErrUnknownCall):
 			s.Log.WarnContext(ctx, "voice webhook for unknown call", "request_id", rid, "event_type", ev.Type)
-			writeJSON(w, http.StatusNotFound, map[string]string{"error": "unknown call"})
-			return
+			return dupes, http.StatusNotFound, false
 		case err != nil:
 			s.Log.ErrorContext(ctx, "voice webhook", "request_id", rid, "event_type", ev.Type, "error", err)
-			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal error"})
-			return
+			return dupes, http.StatusInternalServerError, false
 		case res == calls.EventDuplicate:
 			dupes++
-		default:
-			applied++
 		}
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "received": len(events), "duplicates": dupes})
+	return dupes, http.StatusOK, true
+}
+
+// voiceDelivery serves providers that may send tool calls and status events
+// to either URL (Vapi). Tool calls are recorded first: they are the urgent
+// part. A request with tool calls is always answered 200 with per-call
+// results, because the platform ignores any other status.
+func (s *Server) voiceDelivery(w http.ResponseWriter, r *http.Request, dp voice.DeliveryParser) {
+	d, err := dp.ParseDelivery(r)
+	if err != nil {
+		s.rejectWebhook(w, r, err)
+		return
+	}
+	if len(d.ToolCalls) > 0 {
+		results := make([]voice.ToolResult, 0, len(d.ToolCalls))
+		for _, tc := range d.ToolCalls {
+			results = append(results, voice.ToolResult{Call: tc, Err: s.handleTool(r, tc)})
+		}
+		if len(d.Events) > 0 {
+			_, _, _ = s.applyEvents(r, d.Events)
+		}
+		writeJSON(w, http.StatusOK, dp.ToolReply(results))
+		return
+	}
+	dupes, status, ok := s.applyEvents(r, d.Events)
+	if !ok {
+		writeJSON(w, status, map[string]string{"error": http.StatusText(status)})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "received": len(d.Events), "duplicates": dupes})
+}
+
+// handleTool records one tool call and logs failures without call content.
+func (s *Server) handleTool(r *http.Request, tc voice.ToolCall) error {
+	ctx := r.Context()
+	rid := logging.RequestID(ctx)
+	_, err := s.Calls.HandleTool(ctx, s.Voice.Name(), tc)
+	switch {
+	case errors.Is(err, calls.ErrUnknownTool):
+		s.Log.WarnContext(ctx, "unknown tool", "request_id", rid)
+	case errors.Is(err, calls.ErrUnknownCall):
+		s.Log.ErrorContext(ctx, "tool call for unknown call", "request_id", rid, "tool", tc.Tool)
+	case err != nil:
+		s.Log.ErrorContext(ctx, "tool call", "request_id", rid, "tool", tc.Tool, "error", err)
+	}
+	return err
 }
 
 // voiceTool handles POST /v1/voice/tools/{tool}: a mid-call report that must
@@ -59,6 +115,10 @@ func (s *Server) voiceTool(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, maxWebhookBody)
+	if dp, ok := s.Voice.(voice.DeliveryParser); ok {
+		s.voiceDelivery(w, r, dp)
+		return
+	}
 	tc, err := s.Voice.ParseToolCall(r)
 	if err != nil {
 		s.rejectWebhook(w, r, err)

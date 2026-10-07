@@ -1,0 +1,32 @@
+[
+  {
+    "name": "report_red_flag",
+    "description": "Call at once when the person mentions a fall, chest pain, trouble breathing, fainting, stroke signs, heavy bleeding, new confusion, or wanting to hurt themselves. When unsure, call it.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "category": {"type": "string", "enum": ["fall", "chest_pain", "breathing", "fainting", "stroke_signs", "bleeding", "confusion", "self_harm", "other"]},
+        "severity": {"type": "string", "enum": ["emergency", "urgent"], "description": "emergency unless clearly minor and in the past; self_harm is always emergency"},
+        "quote": {"type": "string", "description": "The person's own words, at most one short sentence"}
+      },
+      "required": ["category", "severity"]
+    }
+  },
+  {
+    "name": "report_scam",
+    "description": "Call when the person mentions police, CBI, customs, a courier or parcel, an arrest, or anyone asking for money, an OTP, bank details or a video call.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "pattern": {"type": "string", "enum": ["agency_threat", "otp_or_bank_request", "money_request", "video_call_pressure", "other"]},
+        "quote": {"type": "string", "description": "The person's own words, at most one short sentence"}
+      },
+      "required": ["pattern"]
+    }
+  },
+  {
+    "name": "report_stop_request",
+    "description": "Call when the person asks you to stop calling, or says no to these calls.",
+    "parameters": {"type": "object", "properties": {}}
+  }
+]

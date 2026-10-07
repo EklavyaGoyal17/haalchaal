@@ -362,7 +362,17 @@ type Provider interface {
 	ParseWebhook(r *http.Request) ([]Event, error)   // verifies the signature first
 	ParseToolCall(r *http.Request) (ToolCall, error) // verifies the signature first
 }
+
+// Optional: platforms that send status events and tool calls in one message
+// format, possibly to either URL, and expect tool results in their own reply
+// format (Vapi). Both handlers use it when present.
+type DeliveryParser interface {
+	ParseDelivery(r *http.Request) (Delivery, error) // Delivery{Events, ToolCalls}
+	ToolReply(results []ToolResult) any
+}
 ```
+
+Vapi adapter (`internal/voice/vapi`, setup in `docs/runbooks/vapi-setup.md`): calls use a saved assistant whose system prompt is `{{system_prompt}}`. Each call passes the rendered prompt as a variable, our call id in `assistantOverrides.metadata`, and turns recording and packet capture off. Webhooks are authenticated with a shared secret (a Bearer Token credential, at least 32 characters, compared in constant time). Every server URL is saved in Vapi, because Vapi attaches credentials only to saved URLs. Status updates map to ringing and answered. The end-of-call report maps to completed with the transcript, or to no_answer, busy or failed according to `endedReason`: any call in which the parent spoke counts as completed, and a voicemail also sends a failed fallback event. Tool requests may hold several calls and are always answered 200 with per-call results.
 
 ```go
 // internal/extract
@@ -727,7 +737,7 @@ For each milestone: post a plan, wait for a go-ahead, implement, get tests green
 
 ## 17. Open decisions for the founder
 
-- **Voice platform.** Needs Indian numbers, good Hindi and Tamil, webhooks, mid-call tools and a compliant service-call setup. Run a one-day bake-off of 2 or 3 platforms with the same script.
+- **Voice platform.** Needs Indian numbers, good Hindi and Tamil, webhooks, mid-call tools and a compliant service-call setup. Run a one-day bake-off of 2 or 3 platforms with the same script. *Decided 2026-10-08: Vapi first. The model, voice and transcriber on the Vapi assistant still need the bake-off, as does the Indian number route.*
 - **LLM for extraction.** Judge on cost, JSON reliability and Hindi and Tamil understanding. Keep an Indian-model fallback.
 - **WhatsApp access.** Meta's Cloud API directly, or through a Business Solution Provider.
 - **Hosting.** Provider and India region.

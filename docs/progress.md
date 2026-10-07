@@ -83,3 +83,26 @@
 - `internal/outbound/phrases.go`: every template parameter the system writes (red-flag categories, scam patterns, urgent reasons, attempt counts, watch notes, the "separate alert" note) in English and Hindi; chosen by the recipient's language (family member's, or the parent's for the local contact); Tamil falls back to English until Tamil templates exist. Native speakers should review the Hindi before the pilot.
 - Scenario `no_answer_hindi_family`; `testdata/gen_goldens.py` regenerates every scenario file.
 - Voice adapter deferred: vendor documentation sites are blocked by this environment's network policy, and a webhook signature scheme for a safety system must not be written from memory.
+
+## M8 (part 2): Vapi voice adapter (2026-10-08)
+- Founder chose Vapi. The adapter is written against docs.vapi.ai, read from the founder's machine.
+- `internal/voice/vapi`: `POST /call` with a saved assistant and phone number. The rendered prompt goes in as the `system_prompt` variable, with our call id in metadata. Recording and SIP packet capture are off on every call, and calls are capped at 10 minutes. Errors carry status codes only, never the response body.
+- Webhook authentication: a shared secret (Bearer Token credential), at least 32 characters, compared in constant time. Vapi documents no request signature.
+- Webhook mapping:
+  - status updates map to ringing and answered;
+  - the end-of-call report maps to completed with the transcript, duration and cost (USD converted with `VOICE_COST_PAISE_PER_USD`), or to no_answer, busy or failed by `endedReason`;
+  - any call in which the parent spoke counts as completed;
+  - a voicemail adds a failed fallback event, because it can follow an in-progress status.
+- Tool calls: a request may carry several, with arguments as an object or a JSON string. They are always answered 200 with Vapi's per-call `results`, and are accepted on both the tool URL and the webhook URL so none is lost.
+- `DeleteRecording` deletes the Vapi call (404 counts as done), for the retention job.
+- `voice.DeliveryParser`: an optional interface the HTTP handlers prefer; the fake provider is unchanged.
+- `prompts/voice_tools.json`: the three tool definitions to paste into Vapi. A test keeps their enums equal to the handlers'.
+- Config: `VOICE_PHONE_NUMBER_ID`, `VOICE_COST_PAISE_PER_USD`.
+- Runbook `docs/runbooks/vapi-setup.md`; SPEC §6 and §17, processors, security and decisions log updated.
+- Tests:
+  - unit: wire format, authentication, every ended-reason class, errors that must not leak content;
+  - integration, through the real HTTP handlers and Postgres with a stub Vapi API: dial; bad secret rejected; ringing and in-progress; a mid-call red flag, repeated, gives one emergency; a tool call for an unknown call gets "Not recorded"; a stop request on the webhook URL pauses the parent; the end-of-call report, sent twice, gives one transcript; process_call merges into the same alert.
+- Still to do for M8's "done when":
+  - the founder's Vapi account, Indian number and assistant (runbook steps 1 to 4);
+  - a real allowlisted test call;
+  - live WhatsApp templates.
