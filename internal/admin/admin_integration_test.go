@@ -297,3 +297,32 @@ func TestTestCallRespectsGuards(t *testing.T) {
 		t.Fatalf("test call to unlisted number: %s %s", status, reason)
 	}
 }
+
+func TestSeedDemo(t *testing.T) {
+	pool := testdb.New(t)
+	k, _ := crypto.GenerateKey()
+	kr, _ := crypto.ParseKeyring("1:"+k, "1")
+	ist, _ := time.LoadLocation("Asia/Kolkata")
+	h, err := admin.New(admin.Handler{Pool: pool, Clock: clock.NewFake(time.Date(2026, 10, 6, 4, 0, 0, 0, time.UTC)), Log: testdb.Log(),
+		Keyring: kr, Users: map[string][]byte{email: []byte("$2a$10$x")}, CSRFKey: kr.DeriveKey("csrf"), Location: ist})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	if n, err := h.SeedDemo(ctx); err != nil || n != 4 {
+		t.Fatalf("first seed: %d, %v", n, err)
+	}
+	if n, err := h.SeedDemo(ctx); err != nil || n != 0 {
+		t.Fatalf("second seed must add nothing: %d, %v", n, err)
+	}
+	var active, paused int
+	_ = pool.QueryRow(ctx, `SELECT count(*) FILTER (WHERE status = 'active'), count(*) FILTER (WHERE status <> 'active') FROM parents`).Scan(&active, &paused)
+	if active != 3 || paused != 1 {
+		t.Fatalf("active %d, not active %d", active, paused)
+	}
+	var audits int
+	_ = pool.QueryRow(ctx, `SELECT count(*) FROM audit_log WHERE action = 'onboard_family'`).Scan(&audits)
+	if audits != 4 {
+		t.Fatalf("onboarding audit rows %d", audits)
+	}
+}

@@ -106,3 +106,7 @@
   - the founder's Vapi account, Indian number and assistant (runbook steps 1 to 4);
   - a real allowlisted test call;
   - live WhatsApp templates.
+
+## Local use on the founder's PC (2026-10-08)
+- `haalchaal seed-demo` / `make seed-demo`: four made-up families (Hindi, Tamil and English parents; one still waiting for the family-sharing consent, so its calls stay off), created through the onboarding validation and transaction, with audit rows. Re-running adds nothing. It refuses to run unless APP_ENV=dev.
+- `hashpw` strips the byte order mark Windows PowerShell adds to piped text. Before this fix, admin login always failed on Windows.

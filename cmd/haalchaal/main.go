@@ -42,6 +42,7 @@ commands:
   hashpw    read a password on stdin and print an ADMIN_USERS bcrypt hash
   rotate-keys  re-encrypt every _enc value with ENCRYPTION_ACTIVE_KID
   simcall   <scenario>: replay testdata/transcripts/<scenario>.json through the pipeline
+  seed-demo add made-up demo families (dev only)
 `
 
 func main() {
@@ -74,6 +75,8 @@ func main() {
 		err = runDev(ctx, log)
 	case "simcall":
 		err = runSimcall(ctx, log, os.Args[2:])
+	case "seed-demo":
+		err = seedDemo(ctx, log)
 	case "-h", "--help", "help":
 		fmt.Print(usage)
 		return
@@ -153,6 +156,36 @@ func runMigrate(ctx context.Context, log *slog.Logger, args []string) error {
 	default:
 		return fmt.Errorf("unknown migrate command %q (want up, down or status)", args[0])
 	}
+	return nil
+}
+
+// seedDemo adds made-up families so the admin pages have something to show.
+// It refuses outside dev, so demo data never reaches a real database.
+func seedDemo(ctx context.Context, log *slog.Logger) error {
+	cfg, pool, err := openPool(ctx, log)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+	if cfg.AppEnv != config.EnvDev {
+		return errors.New("seed-demo only runs with APP_ENV=dev")
+	}
+	a, err := app.New(cfg, pool, log, app.Options{})
+	if err != nil {
+		return err
+	}
+	adm, err := a.NewAdmin()
+	if err != nil {
+		return err
+	}
+	if adm == nil {
+		return errors.New("seed-demo needs ADMIN_USERS (the admin pages) to be configured")
+	}
+	n, err := adm.SeedDemo(ctx)
+	if err != nil {
+		return err
+	}
+	log.Info("demo families added", "created", n)
 	return nil
 }
 

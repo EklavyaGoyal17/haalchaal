@@ -12,7 +12,7 @@ SQLC_IMAGE := sqlc/sqlc:1.29.0
 GOBIN := $(subst \,/,$(shell go env GOPATH))/bin
 STATICCHECK := $(firstword $(wildcard $(GOBIN)/staticcheck $(GOBIN)/staticcheck.exe))
 
-.PHONY: hashpw dev db-up db-down test-db test test-integration lint migrate-up migrate-down migrate-status sqlc genkey simcall
+.PHONY: seed-demo hashpw dev db-up db-down test-db test test-integration lint migrate-up migrate-down migrate-status sqlc genkey simcall
 
 ## dev: start Postgres, apply migrations, run the server and the worker with fake vendors
 dev: db-up migrate-up
@@ -72,3 +72,7 @@ genkey:
 simcall:
 	$(if $(SCENARIO),,$(error usage: make simcall SCENARIO=no_answer))
 	go run ./cmd/haalchaal simcall $(SCENARIO)
+
+## seed-demo: add made-up demo families to the dev database (APP_ENV=dev only)
+seed-demo:
+	go run ./cmd/haalchaal seed-demo
