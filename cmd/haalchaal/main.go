@@ -320,12 +320,19 @@ func hashpw() error {
 	if err != nil && line == "" {
 		return errors.New("usage: echo 'long password' | haalchaal hashpw")
 	}
-	h, err := admin.HashPassword(strings.TrimRight(line, "\r\n"))
+	h, err := admin.HashPassword(passwordFromLine(line))
 	if err != nil {
 		return err
 	}
 	fmt.Println(h)
 	return nil
+}
+
+// passwordFromLine strips the line ending and the byte order mark that
+// Windows PowerShell puts in front of piped text; otherwise the hash would
+// never match the password typed at the login prompt.
+func passwordFromLine(line string) string {
+	return strings.TrimRight(strings.TrimPrefix(line, "\xef\xbb\xbf"), "\r\n")
 }
 
 // rotateKeys re-encrypts stored values under the active key (runbook:
