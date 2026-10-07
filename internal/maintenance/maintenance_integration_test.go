@@ -114,3 +114,30 @@ func TestRotateKeys(t *testing.T) {
 		t.Fatalf("safe word %q %v", s, err)
 	}
 }
+
+// Every _enc column in the schema must be covered by key rotation.
+func TestRotationCoversEveryEncryptedColumn(t *testing.T) {
+	pool := testdb.New(t)
+	rows, err := pool.Query(context.Background(), `SELECT table_name || '.' || column_name FROM information_schema.columns
+		WHERE table_schema = 'public' AND column_name LIKE '%\_enc' ORDER BY 1`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	known := map[string]bool{}
+	for _, c := range maintenance.EncryptedColumns {
+		known[c.Table+"."+c.Column] = true
+	}
+	n := 0
+	for rows.Next() {
+		var col string
+		_ = rows.Scan(&col)
+		n++
+		if !known[col] {
+			t.Errorf("%s is not in maintenance.EncryptedColumns", col)
+		}
+	}
+	if n != len(maintenance.EncryptedColumns) {
+		t.Errorf("schema has %d _enc columns, rotation lists %d", n, len(maintenance.EncryptedColumns))
+	}
+}

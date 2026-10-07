@@ -75,7 +75,10 @@ func (c *Client) Complete(ctx context.Context, prompt string) (string, error) {
 		if errors.As(err, &apiErr) {
 			return "", fmt.Errorf("claude: status %d", apiErr.StatusCode)
 		}
-		return "", fmt.Errorf("claude: request failed: %w", errors.Unwrap(err))
+		if errors.Is(err, context.DeadlineExceeded) {
+			return "", errors.New("claude: request timed out")
+		}
+		return "", fmt.Errorf("claude: request failed: %w", err)
 	}
 	switch resp.StopReason {
 	case anthropic.BetaStopReasonRefusal:
