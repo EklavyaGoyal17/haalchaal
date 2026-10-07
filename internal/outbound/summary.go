@@ -77,7 +77,7 @@ func (s *Service) SendSummary(ctx context.Context, j jobs.Job) error {
 		if err != nil {
 			return err
 		}
-		if note := s.watchNote(ctx, call.ID); note != "" && r.AnsweredBy == "parent" {
+		if note := s.watchNote(ctx, call.ID, m.Language); note != "" && r.AnsweredBy == "parent" {
 			summary += " " + note
 		}
 		if len(r.RedFlags) > 0 || len(r.ScamSignals) > 0 {
@@ -102,7 +102,7 @@ func (s *Service) SendSummary(ctx context.Context, j jobs.Job) error {
 
 // watchNote mentions watch-level trends raised by this call (SPEC §9: low
 // mood or poor sleep three calls in a row appear in the next summary).
-func (s *Service) watchNote(ctx context.Context, callID uuid.UUID) string {
+func (s *Service) watchNote(ctx context.Context, callID uuid.UUID, lang string) string {
 	as, err := db.New(s.Pool).ListWatchAlertsForCall(ctx, &callID)
 	if err != nil {
 		return ""
@@ -110,10 +110,8 @@ func (s *Service) watchNote(ctx context.Context, callID uuid.UUID) string {
 	var parts []string
 	for _, a := range as {
 		switch a.Category {
-		case rules.CategoryLowMood:
-			parts = append(parts, "They have seemed low on the last few calls; a call from you may help.")
-		case rules.CategoryPoorSleep:
-			parts = append(parts, "They have not been sleeping well for a few days.")
+		case rules.CategoryLowMood, rules.CategoryPoorSleep:
+			parts = append(parts, phrase(lang, "watch:"+a.Category))
 		}
 	}
 	return strings.Join(parts, " ")
@@ -162,9 +160,4 @@ func (s *Service) DeadLetter(ctx context.Context, kind string, id int64, p jobs.
 
 // alertNote points the family to the separate alert about the same call, so
 // a calm summary is never read as "all is well".
-func alertNote(lang string) string {
-	if lang == "hi" {
-		return "आज की कॉल के बारे में हमने आपको एक अलग अलर्ट भी भेजा है।"
-	}
-	return "We have also sent you a separate alert about today's call."
-}
+func alertNote(lang string) string { return phrase(lang, "alert_note") }

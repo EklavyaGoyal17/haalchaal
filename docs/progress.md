@@ -78,3 +78,8 @@
 ## M8 (part 1): LLM adapter (2026-10-07)
 - `internal/extract/claude`: Anthropic Messages API through the official Go SDK (`anthropic-sdk-go`), `LLM_PROVIDER=anthropic`, `LLM_MODEL` default `claude-opus-5-5`, effort medium, structured output against `report.schema.json` (keywords structured outputs may reject are stripped; the Go validator still enforces them), server-side refusal fallbacks, 90 s timeout, 2 retries. Refusals and truncation are errors; errors never carry prompt or response text. Wrapped by `extract.ModelExtractor` (one validation retry, then admin review).
 - Tests use a local HTTP server; no network.
+
+## Hindi message wording (2026-10-07)
+- `internal/outbound/phrases.go`: every template parameter the system writes (red-flag categories, scam patterns, urgent reasons, attempt counts, watch notes, the "separate alert" note) in English and Hindi; chosen by the recipient's language (family member's, or the parent's for the local contact); Tamil falls back to English until Tamil templates exist. Native speakers should review the Hindi before the pilot.
+- Scenario `no_answer_hindi_family`; `testdata/gen_goldens.py` regenerates every scenario file.
+- Voice adapter deferred: vendor documentation sites are blocked by this environment's network policy, and a webhook signature scheme for a safety system must not be written from memory.

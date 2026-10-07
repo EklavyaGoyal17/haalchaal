@@ -106,7 +106,7 @@
         "to": "local_contact",
         "template": "alert_emergency_v1",
         "contains": [
-          "they had a fall"
+          "वे गिर गए थे"
         ]
       },
       {

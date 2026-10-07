@@ -186,23 +186,23 @@ func (s *Service) alertMessage(ctx context.Context, a db.Alert, p db.Parent, det
 	switch {
 	case a.Type == alerts.TypeMissedCalls:
 		msg.Template = notify.TplMissedCalls
-		msg.Params = []string{name, s.attemptsText(ctx, a)}
+		msg.Params = []string{name, s.attemptsText(ctx, a, lang)}
 	case a.Category == alerts.CategoryStopRequested:
 		msg.Template = notify.TplCallsPaused
 		msg.Params = []string{name}
 	case a.Type == alerts.TypeEmergency:
 		msg.Template, msg.Buttons = notify.TplAlertEmergency, ack
-		said := categoryPhrase(a.Category)
+		said := categoryPhrase(a.Category, lang)
 		if family && detail != "" {
 			said = quote(detail)
 		}
 		msg.Params = []string{name, clean(said)}
 	case a.Type == alerts.TypeScam:
 		msg.Template, msg.Buttons = notify.TplAlertScam, ack
-		msg.Params = []string{name, scamPhrase(a.Category)}
+		msg.Params = []string{name, scamPhrase(a.Category, lang)}
 	default:
 		msg.Template, msg.Buttons = notify.TplAlertUrgent, ack
-		msg.Params = []string{name, urgentReason(a.Category, detail, family)}
+		msg.Params = []string{name, urgentReason(a.Category, detail, family, lang)}
 	}
 	return msg
 }
@@ -214,62 +214,48 @@ func (s *Service) reviewURL() string {
 	return "/admin/review"
 }
 
-func (s *Service) attemptsText(ctx context.Context, a db.Alert) string {
+func (s *Service) attemptsText(ctx context.Context, a db.Alert, lang string) string {
 	if a.SlotID == nil {
-		return "all attempts"
+		return phrase(lang, "attempts_all")
 	}
 	cs, err := db.New(s.Pool).ListCallsForSlot(ctx, *a.SlotID)
 	if err != nil || len(cs) == 0 {
-		return "all attempts"
+		return phrase(lang, "attempts_all")
 	}
 	if len(cs) == 1 {
-		return "1 attempt"
+		return phrase(lang, "attempts_one")
 	}
-	return strconv.Itoa(len(cs)) + " attempts"
+	return phrasef(lang, "attempts_n", len(cs))
 }
 
-var categoryPhrases = map[string]string{
-	"fall": "they had a fall", "chest_pain": "they have chest pain", "breathing": "they are having trouble breathing",
-	"fainting": "they fainted", "stroke_signs": "they may have signs of a stroke", "bleeding": "they are bleeding",
-	"confusion": "they seemed confused", "self_harm": "they spoke about not wanting to live", "other": "something worrying",
-}
-
-func categoryPhrase(c string) string {
-	if p, ok := categoryPhrases[c]; ok {
-		return p
+func categoryPhrase(c, lang string) string {
+	if _, ok := phrases["en"][c]; ok && !strings.Contains(c, ":") {
+		return phrase(lang, c)
 	}
-	return "something worrying"
+	return phrase(lang, "other")
 }
 
-func scamPhrase(c string) string {
-	switch c {
-	case "agency_threat":
-		return "someone claiming to be police, CBI or customs"
-	case "otp_or_bank_request":
-		return "someone asking for an OTP or bank details"
-	case "money_request":
-		return "someone asking for money"
-	case "video_call_pressure":
-		return "someone pressuring them to stay on a video call"
-	default:
-		return "a suspicious caller"
+func scamPhrase(c, lang string) string {
+	if _, ok := phrases["en"]["scam:"+c]; ok {
+		return phrase(lang, "scam:"+c)
 	}
+	return phrase(lang, "scam:other")
 }
 
-func urgentReason(category, detail string, family bool) string {
+func urgentReason(category, detail string, family bool, lang string) string {
 	switch category {
 	case "distressed":
-		return "they sounded very distressed in today's call"
+		return phrase(lang, "distressed")
 	case "missed_medicine":
 		if family && detail != "" {
-			return clean("they did not take " + detail + " on two calls in a row")
+			return clean(phrasef(lang, "missed_medicine_fmt", detail))
 		}
-		return "they missed a medicine on two calls in a row"
+		return phrase(lang, "missed_medicine")
 	}
 	if family && detail != "" {
-		return clean(`in today's call they said "` + quote(detail) + `"`)
+		return clean(phrasef(lang, "said_fmt", quote(detail)))
 	}
-	return categoryPhrase(category)
+	return categoryPhrase(category, lang)
 }
 
 // quote trims a quote for a message: bounded, without trailing punctuation
